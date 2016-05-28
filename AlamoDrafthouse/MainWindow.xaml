@@ -1,0 +1,103 @@
+﻿<Window x:Class="com.magusoft.drafthouse.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:com.magusoft.drafthouse"
+        xmlns:vm="clr-namespace:com.magusoft.drafthouse.ViewModel"
+        xmlns:m="clr-namespace:com.magusoft.drafthouse.Model"
+        xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
+        xmlns:winctrls="clr-namespace:System.Windows.Converters;assembly=WindowsBase"
+        xmlns:converters="clr-namespace:com.magusoft.drafthouse.Converters"
+        mc:Ignorable="d"
+        Title="Alamo Drafthouse Purchaser" Height="350" Width="525">
+
+    <Window.Resources>
+        <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+        
+        <Style x:Key="ErrorStyle"
+               TargetType="FrameworkElement">
+            <Style.Triggers>
+                <Trigger Property="Validation.HasError" Value="true">
+                    <Setter Property="ToolTip" 
+                            Value="{Binding RelativeSource={x:Static RelativeSource.Self}, Path=(Validation.Errors).CurrentItem.ErrorContent}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ReloadButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <StackPanel Orientation="Horizontal" >
+                            <Image Name="PART_Image" Source="Icons/reload.png" />
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Source" Value="Icons/working.png" TargetName="PART_Image"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <HierarchicalDataTemplate DataType="{x:Type m:Market}" ItemsSource="{Binding Theaters}">
+            <StackPanel Orientation="Horizontal">
+                <Button Command="{Binding LoadTheatersCommand}" 
+                        Visibility="{Binding TheatersLoaded, Converter={StaticResource InverseBooleanToVisibilityConverter}, FallbackValue=Hidden}"
+                        IsEnabled="{Binding LoadingTheaters, Converter={StaticResource InverseBooleanConverter}}"
+                        Style="{StaticResource ReloadButtonStyle}" />
+                <Label Content="{Binding Name}" />
+            </StackPanel> 
+        </HierarchicalDataTemplate>
+
+        <HierarchicalDataTemplate DataType="{x:Type m:Theater}" ItemsSource="{Binding Movies}">
+            <StackPanel Orientation="Horizontal">
+                <Button Command="{Binding LoadMoviesCommand}" 
+                        Visibility="{Binding MoviesLoaded, Converter={StaticResource InverseBooleanToVisibilityConverter}, FallbackValue=Hidden}" 
+                        IsEnabled="{Binding LoadingMovies, Converter={StaticResource InverseBooleanConverter}}" 
+                        Style="{StaticResource ReloadButtonStyle}" /> 
+                    <Label Content="{Binding Name}" />
+            </StackPanel>
+        </HierarchicalDataTemplate>
+
+        <HierarchicalDataTemplate DataType="{x:Type m:Movie}" ItemsSource="{Binding ShowTimes}">
+            <Label Content="{Binding Title}" />
+        </HierarchicalDataTemplate>
+
+        <DataTemplate DataType="{x:Type m:ShowTime}">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Buy" Command="{Binding BuyTicketCommand}" Width="50" Height="25" />
+                <TextBlock Text="{Binding MyShowTime}" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
+    <DockPanel Name="MainDockPanel">
+        <DockPanel.DataContext>
+            <vm:AlamoDrafthouseDataContext />
+        </DockPanel.DataContext>
+
+        <i:Interaction.Triggers>
+            <i:EventTrigger EventName="Loaded">
+                <i:InvokeCommandAction Command="{Binding InitializeCommand}" />
+            </i:EventTrigger>
+        </i:Interaction.Triggers>
+
+        <ProgressBar DockPanel.Dock="Bottom" IsIndeterminate="{Binding IsBusy}" Height="20" />
+        <Label DockPanel.Dock="Bottom" Content="{Binding Status}" FontWeight="Bold" VerticalAlignment="Top" />
+        <Grid DockPanel.Dock="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="Title Filter" />
+            <TextBox Grid.Column="1" Text="{Binding TitleFilter, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
+
+        <TreeView ItemsSource="{Binding Markets}" />
+
+    </DockPanel>
+</Window>
