@@ -17,11 +17,17 @@ using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.PhantomJS;
 using Prism.Commands;
 using Prism.Mvvm;
+using System.Net.Mail;
+using System.Net;
+using System.Windows;
+using log4net;
 
 namespace com.magusoft.drafthouse.ViewModel
 {
 	class AlamoDrafthouseDataContext : BindableBase
 	{
+		private static readonly ILog logger = LogManager.GetLogger(typeof(AlamoDrafthouseDataContext));
+
 		#region Data
 		private string mTitleFilter;
 		public string TitleFilter
@@ -30,16 +36,25 @@ namespace com.magusoft.drafthouse.ViewModel
 			set
 			{
 				SetProperty(ref mTitleFilter, value);
-				foreach (Market market in this.Markets)
-					foreach (Theater theater in market.Theaters)
-						CollectionViewSource.GetDefaultView(theater.Movies).Refresh();
+				RefreshFilters();
 			}
 		}
-		
+
+		private DateTime? mDateFilter;
+		public DateTime? DateFilter
+		{
+			get { return mDateFilter; }
+			set
+			{
+				SetProperty(ref mDateFilter, value);
+				RefreshFilters();
+			}
+		}
+
 		private readonly ObservableCollection<Market> mMarkets;
 		public ObservableCollection<Market> Markets
 		{
-            get
+			get
 			{
 				return mMarkets;
 			}
@@ -53,12 +68,12 @@ namespace com.magusoft.drafthouse.ViewModel
 			get { return mStatus; }
 			set { SetProperty(ref mStatus, value); }
 		}
-		
 		#endregion
 
 		public AlamoDrafthouseDataContext()
 		{
-			this.mTitleFilter = "Master Pancake";
+			this.mTitleFilter = string.Empty;
+			this.mDateFilter = null;
 
 			this.mMarkets = new ObservableCollection<Market>();
 			this.Markets.CollectionChanged += Markets_CollectionChanged;
@@ -81,31 +96,71 @@ namespace com.magusoft.drafthouse.ViewModel
 
 		private void Theaters_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
 		{
+			if (e.OldItems != null)
+			{
+				foreach (Theater theater in e.OldItems)
+					theater.Movies.CollectionChanged -= Movies_CollectionChanged;
+			}
+
 			if (e.NewItems != null)
 			{
 				foreach (Theater theater in e.NewItems)
-					CollectionViewSource.GetDefaultView(theater.Movies).Filter = FilterMovies;
+				{
+					theater.Movies.CollectionChanged += Movies_CollectionChanged;
+					CollectionViewSource.GetDefaultView(theater.Movies).Filter = FilterMovie;
+				}
 			}
 		}
 
-		private bool FilterMovies(object obj)
+		private void Movies_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
 		{
-			if (obj is Movie)
+			if (e.NewItems != null)
 			{
-				Movie currentMovie = (Movie)obj;
-				return currentMovie.Title.ToLowerInvariant().Contains(
-					this.TitleFilter.ToLowerInvariant());
+				foreach (Movie movie in e.NewItems)
+				{
+					CollectionViewSource.GetDefaultView(movie.ShowTimes).Filter = FilterShowTimes;
+				}
 			}
+		}
 
-			return true;
+		private bool FilterShowTimes(object obj)
+		{
+			Debug.Assert(obj is ShowTime);
+			ShowTime showTime = (ShowTime)obj;
+
+			return !DateFilter.HasValue || showTime.MyShowTime.Date.Equals(DateFilter.Value.Date);
+		}
+
+		private bool MovieTitleContains(Movie movie, string wantedTitle)
+		{
+			return movie.Title.ToLowerInvariant().Contains(
+				wantedTitle.ToLowerInvariant());
+		}
+
+		private bool FilterMovie(object obj)
+		{
+			Debug.Assert(obj is Movie);
+			Movie currentMovie = (Movie)obj;
+			bool titleFilter = MovieTitleContains(currentMovie, this.TitleFilter);
+			// No date time filter or...
+			// any showtime matches the filter date
+			bool showTimesFilter = 
+				!DateFilter.HasValue || 
+				currentMovie.ShowTimes.Any(s => s.MyShowTime.Date.Equals(DateFilter.Value.Date)); 
+			return titleFilter && showTimesFilter;
 		}
 		
-		internal async Task InitializeAsync(string marketName, string movieTitle)
+		internal async Task InitializeAsync(
+			string marketName, string movieTitle, 
+			string eMailAddress, string eMailPassword, string toAddress, bool isService)
 		{
 			try
 			{
+				this.TitleFilter = movieTitle;
+
 				this.Status = string.Format("Initializing");
 
+				logger.Info("Reading markets");
 				await OnReloadMarketsAsync();
 
 				var market = (
@@ -116,18 +171,84 @@ namespace com.magusoft.drafthouse.ViewModel
 
 				if (market != null)
 				{
+					
 					await market.OnLoadTheatersAsync();
+					
 					await Task.WhenAll(
 						from t in market.Theaters
 						select t.OnLoadMoviesAsync()
 						);
-				}
 
-				this.TitleFilter = movieTitle;
+					await Task.WhenAll(
+						from t in market.Theaters
+						from m in t.Movies
+						where MovieTitleContains(m, movieTitle)
+						from s in m.ShowTimes
+						select s.OnCheckTicketsOnSaleAsync()
+						);
+
+					if (isService)
+					{
+						logger.Info("Sending e-mail");
+						await SendEmail(market, movieTitle, eMailAddress, eMailPassword, new[] { toAddress });
+						Application.Current.Shutdown();
+					}
+				}
 			}
 			finally
 			{
 				this.Status = string.Format("Finished Initializing");
+			}
+		}
+
+		private async Task SendEmail(
+			Market market, 
+			string movieTitle,
+			string address,
+			string password, 
+			IEnumerable<string> toAddresses)
+		{
+			var moviesOnSale = 
+				from t in market.Theaters
+				from m in t.Movies
+				where MovieTitleContains(m, movieTitle)
+				where m.ShowTimes.Any(s => s.MyTicketsState == TicketsState.OnSale)
+				select new { Theater = t, Movie = m, ShowTimes = m.ShowTimes.Where(s => s.MyTicketsState == TicketsState.OnSale) };
+
+			if (!moviesOnSale.Any())
+				return;
+
+			StringBuilder messageBuilder = new StringBuilder();
+			foreach (var movieOnSale in moviesOnSale)
+			{
+				messageBuilder.AppendLine($"{movieOnSale.Theater.Name} has {movieOnSale.Movie.Title} on the following showtimes:");
+				foreach (ShowTime s in movieOnSale.ShowTimes)
+				{
+					messageBuilder.AppendLine($" - {s.MyShowTime} (Buy: {s.TicketsUrl})");
+				}
+			}
+			logger.Info(messageBuilder.ToString());
+
+			var fromAddress = new MailAddress(address);
+			var smtp = new SmtpClient("smtp.gmail.com", 587)
+			{
+				EnableSsl = true,
+				DeliveryMethod = SmtpDeliveryMethod.Network,
+				UseDefaultCredentials = false,
+				Credentials = new NetworkCredential(fromAddress.Address, password)
+			};
+
+			using (var message = new MailMessage())
+			{
+				message.From = fromAddress;
+				foreach (string toAddress in toAddresses)
+					message.To.Add(toAddress);
+				message.Subject = "Movies on Sale";
+				string bodyContent = messageBuilder.ToString();
+				message.Body = bodyContent;
+				message.BodyEncoding = Encoding.UTF8;
+
+				await smtp.SendMailAsync(message);
 			}
 		}
 
@@ -151,6 +272,21 @@ namespace com.magusoft.drafthouse.ViewModel
 			{
 				this.Status = string.Format("Reloaded markets");
 			}
-        }
+		}
+
+		private void RefreshFilters()
+		{
+			foreach (Market market in this.Markets)
+			{
+				foreach (Theater theater in market.Theaters)
+				{
+					CollectionViewSource.GetDefaultView(theater.Movies).Refresh();
+					foreach (Movie movie in theater.Movies)
+					{
+						CollectionViewSource.GetDefaultView(movie.ShowTimes).Refresh();
+					}
+				}
+			}
+		}
 	}
 }

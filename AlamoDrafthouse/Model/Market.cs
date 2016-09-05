@@ -8,22 +8,16 @@ using com.magusoft.drafthouse.ViewModel;
 using HtmlAgilityPack;
 using Prism.Commands;
 using Prism.Mvvm;
+using log4net;
 
 namespace com.magusoft.drafthouse.Model
 {
 	public class Market : BindableBase
 	{
-		private readonly string mUrl;
-		public string Url
-		{
-			get { return mUrl; }
-		}
+		private static readonly ILog logger = LogManager.GetLogger(typeof(Theater));
 
-		private readonly string mName;
-		public string Name
-		{
-			get { return mName; }
-		}
+		public string Url { get; }
+		public string Name { get; }
 
 		private bool mTheatersLoaded;
 		public bool TheatersLoaded
@@ -32,20 +26,9 @@ namespace com.magusoft.drafthouse.Model
 			private set { SetProperty(ref mTheatersLoaded, value); }
 		}
 
-		private readonly ObservableCollection<Theater> mTheaters;
-		public ObservableCollection<Theater> Theaters
-		{
-			get
-			{
-				return mTheaters;
-			}
-		}
+		public ObservableCollection<Theater> Theaters { get; }
 
-		private readonly DelegateCommand mLoadTheatersCommand;
-		public DelegateCommand LoadTheatersCommand
-		{
-			get { return mLoadTheatersCommand; }
-		}
+		public DelegateCommand LoadTheatersCommand { get; }
 
 		private bool mLoadingTheaters;
 		public bool LoadingTheaters
@@ -56,10 +39,12 @@ namespace com.magusoft.drafthouse.Model
 
 		public Market(string url, string name)
 		{
-			this.mUrl = url;
-			this.mName = name;
-			this.mTheaters = new ObservableCollection<Theater>();
-			this.mLoadTheatersCommand = DelegateCommand.FromAsyncHandler(OnLoadTheatersAsync);
+			this.Url = url;
+			this.Name = name;
+			this.Theaters = new ObservableCollection<Theater>();
+			this.LoadTheatersCommand = DelegateCommand.FromAsyncHandler(OnLoadTheatersAsync);
+
+			this.mTheatersLoaded = false;
 		}
 
 		public async Task OnLoadTheatersAsync()
@@ -67,6 +52,7 @@ namespace com.magusoft.drafthouse.Model
 			try
 			{
 				LoadingTheaters = true;
+				logger.InfoFormat("Reading theaters for {0}", this.Name);
 				await InnerOnLoadTheatersAsync();
 			}
 			finally

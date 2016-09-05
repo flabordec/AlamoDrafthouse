@@ -10,7 +10,7 @@
         xmlns:winctrls="clr-namespace:System.Windows.Converters;assembly=WindowsBase"
         xmlns:converters="clr-namespace:com.magusoft.drafthouse.Converters"
         mc:Ignorable="d"
-        Title="Alamo Drafthouse Purchaser" Height="350" Width="525">
+        Title="Come And Ticket" Height="350" Width="525">
 
     <Window.Resources>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
@@ -68,10 +68,26 @@
         </HierarchicalDataTemplate>
 
         <DataTemplate DataType="{x:Type m:ShowTime}">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="Buy" Command="{Binding BuyTicketCommand}" Width="50" Height="25" />
-                <TextBlock Text="{Binding MyShowTime}" VerticalAlignment="Center" />
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto" />
+                    <ColumnDefinition Width="auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                
+                <Button Grid.Column="0" Content="Buy" Command="{Binding BuyTicketCommand}" Width="50" Height="25" />
+                <Button Grid.Column="1" 
+                        Command="{Binding CheckTicketsOnSaleCommand}"
+                        Visibility="{Binding TicketsOnSaleLoaded, Converter={StaticResource InverseBooleanToVisibilityConverter}, FallbackValue=Hidden}"
+                        IsEnabled="{Binding CheckingTicketsOnSale, Converter={StaticResource InverseBooleanConverter}}"
+                        Style="{StaticResource ReloadButtonStyle}" />
+                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding MyShowTime}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding TicketsSaleStatus}" VerticalAlignment="Center" />
+            </Grid>
         </DataTemplate>
     </Window.Resources>
 
@@ -80,21 +96,21 @@
             <vm:AlamoDrafthouseDataContext />
         </DockPanel.DataContext>
 
-        <i:Interaction.Triggers>
-            <i:EventTrigger EventName="Loaded">
-                <i:InvokeCommandAction Command="{Binding InitializeCommand}" />
-            </i:EventTrigger>
-        </i:Interaction.Triggers>
-
-        <ProgressBar DockPanel.Dock="Bottom" IsIndeterminate="{Binding IsBusy}" Height="20" />
         <Label DockPanel.Dock="Bottom" Content="{Binding Status}" FontWeight="Bold" VerticalAlignment="Top" />
         <Grid DockPanel.Dock="Top">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="auto" />
                 <ColumnDefinition />
             </Grid.ColumnDefinitions>
-            <Label Grid.Column="0" Content="Title Filter" />
-            <TextBox Grid.Column="1" Text="{Binding TitleFilter, UpdateSourceTrigger=PropertyChanged}" />
+            
+            <Label Grid.Row="0" Grid.Column="0" Content="Title Filter" />
+            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding TitleFilter, UpdateSourceTrigger=PropertyChanged}" />
+            <Label Grid.Row="1" Grid.Column="0" Content="Date Filter" />
+            <DatePicker Grid.Row="1" Grid.Column="1" SelectedDate="{Binding DateFilter}" />
         </Grid>
 
         <TreeView ItemsSource="{Binding Markets}" />

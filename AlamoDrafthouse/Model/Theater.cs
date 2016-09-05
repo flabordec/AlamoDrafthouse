@@ -13,22 +13,16 @@ using HtmlAgilityPack;
 using mvvm.magusoft.com;
 using Prism.Commands;
 using Prism.Mvvm;
+using log4net;
 
 namespace com.magusoft.drafthouse.Model
 {
 	public class Theater : ValidatableBindableBase
 	{
-		private readonly string mName;
-		public string Name
-		{
-			get { return mName; }
-		}
+		private static readonly ILog logger = LogManager.GetLogger(typeof(Theater));
 
-		private readonly string mTheaterUrl;
-		public string TheaterUrl
-		{
-			get { return mTheaterUrl; }
-		}
+		public string Name { get; }
+		public string TheaterUrl { get; }
 
 		private bool mMoviesLoaded;
 		public bool MoviesLoaded
@@ -39,17 +33,12 @@ namespace com.magusoft.drafthouse.Model
 
 		public string CalendarUrl
 		{
-			get { return mTheaterUrl.Replace("theater", "calendar"); }
-        }
-
-		private readonly ObservableCollection<Movie> mMovies;
-        public ObservableCollection<Movie> Movies { get { return mMovies; } }
-
-		private readonly DelegateCommand mLoadMoviesCommand;
-		public DelegateCommand LoadMoviesCommand
-		{
-			get { return mLoadMoviesCommand; }
+			get { return TheaterUrl.Replace("theater", "calendar"); }
 		}
+
+		public ObservableCollection<Movie> Movies { get; }
+
+		public DelegateCommand LoadMoviesCommand { get; }
 
 		private bool mLoadingMovies;
 		public bool LoadingMovies
@@ -60,10 +49,10 @@ namespace com.magusoft.drafthouse.Model
 
 		public Theater(string name, string theaterUrl)
 		{
-			this.mName = name;
-			this.mTheaterUrl = theaterUrl;
-			this.mMovies = new ObservableCollection<Movie>();
-			this.mLoadMoviesCommand = DelegateCommand.FromAsyncHandler(OnLoadMoviesAsync);
+			this.Name = name;
+			this.TheaterUrl = theaterUrl;
+			this.Movies = new ObservableCollection<Movie>();
+			this.LoadMoviesCommand = DelegateCommand.FromAsyncHandler(OnLoadMoviesAsync);
 
 			this.mMoviesLoaded = false;
 		}
@@ -73,6 +62,7 @@ namespace com.magusoft.drafthouse.Model
 			try
 			{
 				LoadingMovies = true;
+				logger.InfoFormat("Reading movies for {0}", this.Name);
 				await InnerOnLoadMoviesAsync();
 			}
 			finally
@@ -95,7 +85,7 @@ namespace com.magusoft.drafthouse.Model
 			while (retryCount < 5)
 			{
 				retryCount++;
-				
+
 				HtmlDocument marketsDocument = await WebDriverHelper.GetPageHtmlDocumentAsync(this.CalendarUrl);
 				HtmlNode commentNode = marketsDocument.DocumentNode.SelectSingleNode("//main/comment()[contains(., 'ANGULAR ajax:')]");
 				if (commentNode == null)
@@ -107,7 +97,7 @@ namespace com.magusoft.drafthouse.Model
 					continue;
 
 				string ajaxUrl = ajaxMatch.Groups[1].Value;
-				
+
 				HtmlDocument ajaxDocument = await WebDriverHelper.GetPageHtmlDocumentAsync(ajaxUrl);
 
 				var dateNodes =
@@ -162,6 +152,22 @@ namespace com.magusoft.drafthouse.Model
 			}
 		}
 
+		private Dictionary<string, int> Months { get; } = new Dictionary<string, int>()
+		{
+			{ "Jan", 1 },
+			{ "Feb", 2 },
+			{ "Mar", 3 },
+			{ "Apr", 4 },
+			{ "May", 5 },
+			{ "Jun", 6 },
+			{ "Jul", 7 },
+			{ "Agu", 8 },
+			{ "Sep", 9 },
+			{ "Oct", 10 },
+			{ "Nov", 11 },
+			{ "Dec", 12 },
+		};
+
 		private IEnumerable<ShowTime> ParseShowTimes(HtmlNode node, HtmlNode dayNode)
 		{
 			var dateNode = (
@@ -169,16 +175,38 @@ namespace com.magusoft.drafthouse.Model
 				where dateDiv.AttributeExistsAndHasValue("class", "Calendar-date")
 				select dateDiv
 				).Single();
-			string date = dateNode.InnerText.Trim();
+			string dateString = dateNode.InnerText.Trim();
 
+			// Parse date of the format: 
+			// Sun, Sep 4
+			Regex dateRegex = new Regex(@"\w+, (\w+) (\d+)");
+			Match dateMatch = dateRegex.Match(dateString);
+
+			string monthString = dateMatch.Groups[1].Value;
+			int month = Months[monthString];
+
+			// If we are in November or December and they already have January or February on their 
+			// calendar then it's the next year. This is a bit kludgy, but the data does not include 
+			// years
+			int year = DateTime.Today.Year;
+			if (DateTime.Today.Month > month)
+				year++;
+
+			int day = int.Parse(dateMatch.Groups[2].Value);
+
+			Regex timeRegex = new Regex(@"(\d+):(\d+)(am|pm)");
 			foreach (HtmlNode showTimeNode in node.Elements("a"))
 			{
 				string url = showTimeNode.Attributes["href"]?.Value;
-				string time = showTimeNode.InnerText.Trim();
+				string timeString = showTimeNode.InnerText.Trim();
+				Match timeMatch = timeRegex.Match(timeString);
+				int hours = int.Parse(timeMatch.Groups[1].Value);
+				int minutes = int.Parse(timeMatch.Groups[2].Value);
+				if (hours != 12 && timeMatch.Groups[3].Value.Equals("pm", StringComparison.OrdinalIgnoreCase))
+					hours += 12;
 
-				string showTimeString = string.Format("{0} {1}", date, time);
-
-				yield return new ShowTime(showTimeString, url);
+				DateTime date = new DateTime(year, month, day, hours, minutes, 0, DateTimeKind.Local);
+				yield return new ShowTime(date, url);
 			}
 		}
 	}

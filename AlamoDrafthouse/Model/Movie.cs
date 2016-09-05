@@ -1,4 +1,7 @@
-﻿using System;
+﻿using HtmlAgilityPack;
+using Prism.Commands;
+using Prism.Mvvm;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -7,33 +10,22 @@ using System.Threading.Tasks;
 
 namespace com.magusoft.drafthouse.Model
 {
-	public class Movie
+	public class Movie : BindableBase
 	{
-		private readonly string mTitle;
-		public string Title
-		{
-			get
-			{
-				return mTitle;
-			}
-		}
+		public string Title { get; }
+		
+		public Theater Theater { get; }
 
 		private readonly List<ShowTime> mShowTimes;
 		public IEnumerable<ShowTime> ShowTimes
 		{
-			get
-			{
-				return mShowTimes;
-			}
+			get { return mShowTimes; }
 		}
-
-		private readonly Theater mTheater;
-		public Theater Theater { get { return mTheater; } }
 
 		public Movie(Theater theater, string title, IEnumerable<ShowTime> showTimes)
 		{
-			this.mTheater = theater;
-			this.mTitle = title;
+			this.Theater = theater;
+			this.Title = title;
 			this.mShowTimes = new List<ShowTime>(showTimes);
 		}
 	}
