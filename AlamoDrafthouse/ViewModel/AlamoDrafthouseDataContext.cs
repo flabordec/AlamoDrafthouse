@@ -171,9 +171,9 @@ namespace com.magusoft.drafthouse.ViewModel
 
 				if (market != null)
 				{
-					
+
 					await market.OnLoadTheatersAsync();
-					
+
 					await Task.WhenAll(
 						from t in market.Theaters
 						select t.OnLoadMoviesAsync()
@@ -189,11 +189,16 @@ namespace com.magusoft.drafthouse.ViewModel
 
 					if (isService)
 					{
-						logger.Info("Sending e-mail");
+						logger.Info($"Sending e-mail to {toAddress}");
 						await SendEmail(market, movieTitle, eMailAddress, eMailPassword, new[] { toAddress });
 						Application.Current.Shutdown();
 					}
 				}
+			}
+			catch (Exception ex) 
+			{
+				logger.Error("Exception while initializing", ex);
+				throw;
 			}
 			finally
 			{
