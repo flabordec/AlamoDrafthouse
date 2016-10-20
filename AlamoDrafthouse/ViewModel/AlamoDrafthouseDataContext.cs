@@ -21,6 +21,7 @@ using System.Net.Mail;
 using System.Net;
 using System.Windows;
 using log4net;
+using System.Xml.Linq;
 
 namespace com.magusoft.drafthouse.ViewModel
 {
@@ -144,14 +145,14 @@ namespace com.magusoft.drafthouse.ViewModel
 			bool titleFilter = MovieTitleContains(currentMovie, this.TitleFilter);
 			// No date time filter or...
 			// any showtime matches the filter date
-			bool showTimesFilter = 
-				!DateFilter.HasValue || 
-				currentMovie.ShowTimes.Any(s => s.MyShowTime.Date.Equals(DateFilter.Value.Date)); 
+			bool showTimesFilter =
+				!DateFilter.HasValue ||
+				currentMovie.ShowTimes.Any(s => s.MyShowTime.Date.Equals(DateFilter.Value.Date));
 			return titleFilter && showTimesFilter;
 		}
-		
+
 		internal async Task InitializeAsync(
-			string marketName, string movieTitle, 
+			string marketName, string movieTitle,
 			string eMailAddress, string eMailPassword, string toAddress, bool isService)
 		{
 			try
@@ -195,7 +196,7 @@ namespace com.magusoft.drafthouse.ViewModel
 					}
 				}
 			}
-			catch (Exception ex) 
+			catch (Exception ex)
 			{
 				logger.Error("Exception while initializing", ex);
 				throw;
@@ -207,18 +208,20 @@ namespace com.magusoft.drafthouse.ViewModel
 		}
 
 		private async Task SendEmail(
-			Market market, 
+			Market market,
 			string movieTitle,
 			string address,
-			string password, 
+			string password,
 			IEnumerable<string> toAddresses)
 		{
-			var moviesOnSale = 
+			var moviesOnSale =
 				from t in market.Theaters
 				from m in t.Movies
+				from s in m.ShowTimes
 				where MovieTitleContains(m, movieTitle)
-				where m.ShowTimes.Any(s => s.MyTicketsState == TicketsState.OnSale)
-				select new { Theater = t, Movie = m, ShowTimes = m.ShowTimes.Where(s => s.MyTicketsState == TicketsState.OnSale) };
+				where !MovieAlreadySent(t, m, s)
+				group s by new { Theater = t, Movie = m } into showtimes
+				select showtimes;
 
 			if (!moviesOnSale.Any())
 				return;
@@ -226,10 +229,17 @@ namespace com.magusoft.drafthouse.ViewModel
 			StringBuilder messageBuilder = new StringBuilder();
 			foreach (var movieOnSale in moviesOnSale)
 			{
-				messageBuilder.AppendLine($"{movieOnSale.Theater.Name} has {movieOnSale.Movie.Title} on the following showtimes:");
-				foreach (ShowTime s in movieOnSale.ShowTimes)
+				Theater t = movieOnSale.Key.Theater;
+				Movie m = movieOnSale.Key.Movie;
+				messageBuilder.AppendLine($"{t.Name} has {m.Title} on the following showtimes:");
+				foreach (ShowTime s in movieOnSale)
 				{
-					messageBuilder.AppendLine($" - {s.MyShowTime} (Buy: {s.TicketsUrl})");
+					if (s.MyTicketsState == TicketsState.OnSale)
+						messageBuilder.AppendLine($" - {s.MyShowTime} (Buy: {s.TicketsUrl})");
+					else
+						messageBuilder.AppendLine($" - {s.MyShowTime} (Tickets not yet on sale)");
+
+					MarkMovieSent(t, m, s);
 				}
 			}
 			logger.Info(messageBuilder.ToString());
@@ -255,6 +265,46 @@ namespace com.magusoft.drafthouse.ViewModel
 
 				await smtp.SendMailAsync(message);
 			}
+		}
+
+		private XDocument GetConfigurationFile()
+		{
+			if (File.Exists("output.xml"))
+			{
+				return XDocument.Load("output.xml");
+			}
+			else
+			{
+				return new XDocument(
+					new XElement("SentMovies"));
+			}
+		}
+
+		private bool MovieAlreadySent(Theater t, Movie m, ShowTime s)
+		{
+			XDocument doc = GetConfigurationFile();
+			return (
+				from movie in doc.Descendants("Movie")
+				where movie.Attribute("Theater").Value == t.Name
+				where movie.Attribute("Title").Value == m.Title
+				where movie.Attribute("TicketsURL").Value == s.TicketsUrl
+				where movie.Attribute("TicketState").Value == s.MyTicketsState.ToString()
+				select movie
+				).Any();
+		}
+
+		private void MarkMovieSent(Theater t, Movie m, ShowTime s)
+		{
+			XDocument doc = GetConfigurationFile();
+			doc.Root.Add(
+				new XElement("Movie",
+					new XAttribute("Theater", t.Name),
+					new XAttribute("Title", m.Title),
+					new XAttribute("TicketsURL", s.TicketsUrl),
+					new XAttribute("TicketState", s.MyTicketsState)
+					)
+				);
+			doc.Save("output.xml");
 		}
 
 		private async Task OnReloadMarketsAsync()
