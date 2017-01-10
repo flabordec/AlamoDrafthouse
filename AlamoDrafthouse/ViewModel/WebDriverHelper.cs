@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using HtmlAgilityPack;
 using OpenQA.Selenium;
 using OpenQA.Selenium.PhantomJS;
+using OpenQA.Selenium.Firefox;
+using OpenQA.Selenium.Chrome;
+using System.Net;
 
 namespace com.magusoft.drafthouse.ViewModel
 {
@@ -57,15 +60,14 @@ namespace com.magusoft.drafthouse.ViewModel
 	{
 		internal static HtmlDocument GetPageHtmlDocument(string url)
 		{
-			using (DisposableDriver driver = new DisposableDriver())
+			using (WebClient client = new WebClient())
 			{
-				driver.Browser.Navigate().GoToUrl(url);
-				string source = driver.Browser.PageSource;
+				string source = client.DownloadString(url);
 
-				HtmlDocument marketsDocument = new HtmlDocument();
-				marketsDocument.LoadHtml(source);
+				HtmlDocument document = new HtmlDocument();
+				document.LoadHtml(source);
 
-				return marketsDocument;
+				return document;
 			}
 		}
 
