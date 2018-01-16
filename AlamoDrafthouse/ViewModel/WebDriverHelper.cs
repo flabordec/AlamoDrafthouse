@@ -9,6 +9,10 @@ using OpenQA.Selenium.PhantomJS;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Chrome;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using Newtonsoft.Json.Linq;
+using System.IO;
 
 namespace com.magusoft.drafthouse.ViewModel
 {
@@ -21,7 +25,7 @@ namespace com.magusoft.drafthouse.ViewModel
 
 		public DisposableDriver()
 		{
-			lock(DisposableDriver.Lock)
+			lock (DisposableDriver.Lock)
 			{
 				var service = PhantomJSDriverService.CreateDefaultService("PhantomJS");
 				service.HideCommandPromptWindow = true;
@@ -56,11 +60,11 @@ namespace com.magusoft.drafthouse.ViewModel
 
 	}
 
-	static class WebDriverHelper
+	static class InternetHelpers
 	{
 		internal static async Task<string> GetPageContentAsync(string url)
 		{
-			return await Task.Run(() => 
+			return await Task.Run(() =>
 			{
 				using (WebClient client = new WebClient())
 				{
@@ -79,5 +83,25 @@ namespace com.magusoft.drafthouse.ViewModel
 
 			return document;
 		}
+
+		public static async Task PushbulletPushAsync(
+			string authenticationToken,
+			Dictionary<string, string> parameters)
+		{
+			WebRequest request = WebRequest.Create("https://api.pushbullet.com/v2/pushes");
+			request.Method = "POST";
+			request.Headers.Add("Authorization", $"Bearer {authenticationToken}");
+			request.ContentType = "application/json; charset=UTF-8";
+
+			string parametersString = Newtonsoft.Json.JsonConvert.SerializeObject(parameters);
+			byte[] parametersByteArray = Encoding.UTF8.GetBytes(parametersString);
+
+			request.ContentLength = parametersByteArray.Length;
+			using (Stream dataStream = request.GetRequestStream())
+			{
+				await dataStream.WriteAsync(parametersByteArray, 0, parametersByteArray.Length);
+			}
+		}
+
 	}
 }

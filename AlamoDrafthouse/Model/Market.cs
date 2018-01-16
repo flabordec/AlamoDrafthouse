@@ -69,7 +69,7 @@ namespace com.magusoft.drafthouse.Model
 					return;
 			}
 
-			HtmlDocument marketsDocument = await WebDriverHelper.GetPageHtmlDocumentAsync(this.Url);
+			HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync(this.Url);
 
 			var theaters =
 				from node in marketsDocument.DocumentNode.Descendants("a")

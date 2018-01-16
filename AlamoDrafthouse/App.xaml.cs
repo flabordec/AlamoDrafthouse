@@ -27,29 +27,22 @@ namespace com.magusoft.drafthouse
 			string marketName = null;
 			string movieTitle = string.Empty;
 			bool isService = false;
-			string eMailAddress = string.Empty;
-			string eMailPassword = string.Empty;
-			string toAddress = string.Empty;
+			string pushbulletApiToken = string.Empty;
 			var optionSet = new OptionSet()
 				{
 					{ "m|market=", m => marketName = m?.ToLowerInvariant() },
 					{ "v|movie=", m => movieTitle = m?.ToLowerInvariant() },
 					{ "s|service", s => isService = true },
-					{ "a|eMailAddress=", m => eMailAddress = m },
-					{ "p|eMailPassword=", p => eMailPassword = p },
+					{ "p|pushbulletApiToken=", p => pushbulletApiToken = p },
 				};
 			optionSet.Parse(e.Args);
 			
 			if (isService)
 			{
-				toAddress = ConfigurationManager.AppSettings["toAddress"];
-
-				if (string.IsNullOrEmpty(eMailAddress) || 
-					string.IsNullOrEmpty(eMailPassword) || 
-					string.IsNullOrEmpty(toAddress))
+				if (string.IsNullOrEmpty(pushbulletApiToken))
 				{
 					logger.Error(
-						"The e-mail addresses and password must be specified if the application runs as " +
+						"The Pushbullet API token must be specified if the application runs as " +
 						"a service, running normally");
 					isService = false;
 				}
@@ -59,7 +52,7 @@ namespace com.magusoft.drafthouse
 			AlamoDrafthouseDataContext context = window.MainDockPanel.DataContext as AlamoDrafthouseDataContext;
 			if (!isService)
 				window.Show();
-			context.InitializeAsync(marketName, movieTitle, eMailAddress, eMailPassword, toAddress, isService).ContinueWith(t => { });
+			context.InitializeAsync(marketName, movieTitle, pushbulletApiToken, isService).ContinueWith(t => { });
 		}
 	}
 }

@@ -12,143 +12,71 @@ using log4net;
 
 namespace com.magusoft.drafthouse.Model
 {
-	public enum TicketsState
+	public enum TicketsStatus
 	{
 		Unknown,
 		OnSale,
 		NotOnSale,
+		SoldOut,
+		Past,
 	}
 
 	public class ShowTime : BindableBase
 	{
 		private static readonly ILog logger = LogManager.GetLogger(typeof(ShowTime));
 
-		public DelegateCommand CheckTicketsOnSaleCommand { get; }
-		public DateTime MyShowTime { get; }
+		public DateTime? MyShowTime { get; }
 		public DelegateCommand BuyTicketCommand { get; }
 
-		private string InitialUrl { get; }
+		public TicketsStatus MyTicketsStatus { get; }
+		public int? SeatsLeft { get; }
 
-		private TicketsState mMyTicketsState;
-		public TicketsState MyTicketsState
+		public string TicketsUrl { get; }
+		
+		public ShowTime(DateTime? showTime, string url, string ticketsSaleStatusString, int? seatsLeft)
 		{
-			get { return mMyTicketsState; }
-			set
+			this.MyShowTime = showTime;
+			this.TicketsUrl = url;
+			this.MyTicketsStatus = StringToTicketsSaleStatus(ticketsSaleStatusString);
+			this.SeatsLeft = seatsLeft;
+
+			this.BuyTicketCommand = new DelegateCommand(OnBuyTicket, CanBuyTicket);
+			this.BuyTicketCommand.ObservesProperty(() => MyTicketsStatus);
+		}
+
+		private TicketsStatus StringToTicketsSaleStatus(string ticketsSaleStatusString)
+		{
+			if (ticketsSaleStatusString == null)
 			{
-				SetProperty(ref mMyTicketsState, value);
-				OnPropertyChanged(() => TicketsOnSaleLoaded);
+				Debug.Fail("Null tickets status");
+				return TicketsStatus.Unknown;
+			}
+
+			switch (ticketsSaleStatusString) {
+				case "onsale":
+					return TicketsStatus.OnSale;
+				case "notonsale":
+					return TicketsStatus.NotOnSale;
+				case "soldout":
+					return TicketsStatus.SoldOut;
+				case "past":
+					return TicketsStatus.Past;
+				default:
+					Debug.Fail($"Unexpected value: {ticketsSaleStatusString}");
+					return TicketsStatus.Unknown;
 			}
 		}
 
-		public bool TicketsOnSaleLoaded
-		{
-			get { return MyTicketsState != TicketsState.Unknown; }
-		}
-
-		private string mTicketsSaleStatus;
-		public string TicketsSaleStatus
-		{
-			get { return mTicketsSaleStatus; }
-			set { SetProperty(ref mTicketsSaleStatus, value); }
-		}
-
-		private string mTicketsUrl;
-		public string TicketsUrl
-		{
-			get { return mTicketsUrl; }
-			set { SetProperty(ref mTicketsUrl, value); }
-		}
-
-		private bool mCheckingTicketsOnSale;
-		public bool CheckingTicketsOnSale
-		{
-			get { return mCheckingTicketsOnSale; }
-			private set { SetProperty(ref mCheckingTicketsOnSale, value); }
-		}
-
-		public ShowTime(DateTime showTime, string url)
-		{
-			this.MyShowTime = showTime;
-			this.InitialUrl = url;
-
-			this.BuyTicketCommand = new DelegateCommand(OnBuyTicket, CanBuyTicket);
-			this.BuyTicketCommand.ObservesProperty(() => MyTicketsState);
-
-			this.CheckTicketsOnSaleCommand = DelegateCommand.FromAsyncHandler(OnCheckTicketsOnSaleAsync, CanCheckTicketsOnSaleAsync);
-			this.CheckTicketsOnSaleCommand.ObservesProperty(() => MyTicketsState);
-		}
-		
 		private bool CanBuyTicket()
 		{
-			// TODO Change when I'm more confident I'm really getting the tickets
-			// return this.InitialUrl != null && (!this.TicketsOnSale.HasValue || this.TicketsOnSale.Value);
-
-			return this.InitialUrl != null;
+			return 
+				this.TicketsUrl != null && 
+				this.MyTicketsStatus == TicketsStatus.OnSale;
 		}
 
 		private void OnBuyTicket()
 		{
-			Process.Start(this.InitialUrl);
-		}
-
-		private bool CanCheckTicketsOnSaleAsync()
-		{
-			return this.InitialUrl != null && this.MyTicketsState == TicketsState.Unknown;
-		}
-
-		public async Task OnCheckTicketsOnSaleAsync()
-		{
-			try
-			{
-				CheckingTicketsOnSale = true;
-				await InnerCheckTicketsOnSaleAsync();
-			}
-			finally
-			{
-				CheckingTicketsOnSale = false;
-			}
-		}
-
-		private async Task InnerCheckTicketsOnSaleAsync()
-		{
-			lock (this)
-			{
-				if (this.MyTicketsState != TicketsState.Unknown)
-					return;
-			}
-
-			HtmlDocument ticketsOnSaleDocument = await WebDriverHelper.GetPageHtmlDocumentAsync(this.InitialUrl);
-
-			var saleNode = (
-				from node in ticketsOnSaleDocument.DocumentNode.Descendants()
-				where ClassMatches(node, "button", "expand", "u-noMarginBot")
-				select node
-				).SingleOrDefault();
-
-			if (this.MyTicketsState == TicketsState.Unknown)
-			{
-				lock (this)
-				{
-					if (this.MyTicketsState != TicketsState.Unknown)
-						return;
-
-					if (saleNode != null)
-					{
-						this.MyTicketsState = (saleNode.Name == "a") ? TicketsState.OnSale : TicketsState.NotOnSale;
-						this.TicketsSaleStatus = saleNode.InnerText;
-						this.TicketsUrl = saleNode.Attributes["href"]?.Value;
-					}
-				}
-			}
-		}
-
-		private static bool ClassMatches(HtmlNode node, params string[] classes)
-		{
-			if (node.Attributes["class"] == null)
-				return false;
-
-			bool allMatched = classes.All(c => node.Attributes["class"].Value.Contains(c));
-			return allMatched;
+			Process.Start(this.TicketsUrl);
 		}
 	}
 }

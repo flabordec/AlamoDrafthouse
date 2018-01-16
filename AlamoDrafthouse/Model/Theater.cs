@@ -88,7 +88,7 @@ namespace com.magusoft.drafthouse.Model
 			{
 				retryCount++;
 
-				HtmlDocument marketsDocument = await WebDriverHelper.GetPageHtmlDocumentAsync(this.CalendarUrl);
+				HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync(this.CalendarUrl);
 				HtmlNode showTimeControllerNode = marketsDocument.DocumentNode.SelectSingleNode("//div[@ng-controller='ShowtimeController']");
 				Regex showTimesRegex = new Regex(@"initCalendar\('([^']+)','([^']+)'\)");
 				Match showTimesMatch = showTimesRegex.Match(showTimeControllerNode.Attributes["ng-init"].Value);
@@ -100,7 +100,7 @@ namespace com.magusoft.drafthouse.Model
 				string ajaxUrl = $"{showTimesUrlBase}calendar/{showTimesUrlCode}";
 
 
-				string jsonContent = await WebDriverHelper.GetPageContentAsync(ajaxUrl);
+				string jsonContent = await InternetHelpers.GetPageContentAsync(ajaxUrl);
 				JToken json = JToken.Parse(jsonContent, new JsonLoadSettings());
 
 				// https://drafthouse.com/austin/tickets/showtime/0002/29212
@@ -120,8 +120,10 @@ namespace com.magusoft.drafthouse.Model
 					let title = filmsNode["FilmName"]?.Value<string>()
 					let showTimeDateTime = sessionsNode["SessionDateTime"]?.Value<DateTime>()
 					let showTimeId = sessionsNode["SessionId"]?.Value<string>()
+					let showTimeStatus = sessionsNode["SessionStatus"]?.Value<string>()
+					let seatsLeft = sessionsNode["SeatsLeft"]?.Value<int>()
 					let movieUrl = $"https://drafthouse.com/{cinemaSlug}/tickets/showtime/{cinemaId}/{showTimeId}"
-					let showTime = new ShowTime(showTimeDateTime ?? new DateTime(), movieUrl)
+					let showTime = new ShowTime(showTimeDateTime, movieUrl, showTimeStatus, seatsLeft)
 					group showTime by title into movieGroup
 					select movieGroup;
 
@@ -162,63 +164,6 @@ namespace com.magusoft.drafthouse.Model
 				}
 			}
 		}
-
-		private Dictionary<string, int> Months { get; } = new Dictionary<string, int>()
-		{
-			{ "Jan", 1 },
-			{ "Feb", 2 },
-			{ "Mar", 3 },
-			{ "Apr", 4 },
-			{ "May", 5 },
-			{ "Jun", 6 },
-			{ "Jul", 7 },
-			{ "Agu", 8 },
-			{ "Sep", 9 },
-			{ "Oct", 10 },
-			{ "Nov", 11 },
-			{ "Dec", 12 },
-		};
-
-		private IEnumerable<ShowTime> ParseShowTimes(HtmlNode node, HtmlNode dayNode)
-		{
-			var dateNode = (
-				from dateDiv in dayNode.Descendants("div")
-				where dateDiv.AttributeExistsAndHasValue("class", "Calendar-date")
-				select dateDiv
-				).Single();
-			string dateString = dateNode.InnerText.Trim();
-
-			// Parse date of the format: 
-			// Sun, Sep 4
-			Regex dateRegex = new Regex(@"\w+, (\w+) (\d+)");
-			Match dateMatch = dateRegex.Match(dateString);
-
-			string monthString = dateMatch.Groups[1].Value;
-			int month = Months[monthString];
-
-			// If we are in November or December and they already have January or February on their 
-			// calendar then it's the next year. This is a bit kludgy, but the data does not include 
-			// years
-			int year = DateTime.Today.Year;
-			if (DateTime.Today.Month > month)
-				year++;
-
-			int day = int.Parse(dateMatch.Groups[2].Value);
-
-			Regex timeRegex = new Regex(@"(\d+):(\d+)(am|pm)");
-			foreach (HtmlNode showTimeNode in node.Elements("a"))
-			{
-				string url = showTimeNode.Attributes["href"]?.Value;
-				string timeString = showTimeNode.InnerText.Trim();
-				Match timeMatch = timeRegex.Match(timeString);
-				int hours = int.Parse(timeMatch.Groups[1].Value);
-				int minutes = int.Parse(timeMatch.Groups[2].Value);
-				if (hours != 12 && timeMatch.Groups[3].Value.Equals("pm", StringComparison.OrdinalIgnoreCase))
-					hours += 12;
-
-				DateTime date = new DateTime(year, month, day, hours, minutes, 0, DateTimeKind.Local);
-				yield return new ShowTime(date, url);
-			}
-		}
+		
 	}
 }

@@ -22,6 +22,7 @@ using System.Net;
 using System.Windows;
 using log4net;
 using System.Xml.Linq;
+using System.Net.Http;
 
 namespace com.magusoft.drafthouse.ViewModel
 {
@@ -129,7 +130,7 @@ namespace com.magusoft.drafthouse.ViewModel
 			Debug.Assert(obj is ShowTime);
 			ShowTime showTime = (ShowTime)obj;
 
-			return !DateFilter.HasValue || showTime.MyShowTime.Date.Equals(DateFilter.Value.Date);
+			return !DateFilter.HasValue || showTime.MyShowTime.Value.Date.Equals(DateFilter.Value.Date);
 		}
 
 		private bool MovieTitleContains(Movie movie, string wantedTitle)
@@ -147,13 +148,13 @@ namespace com.magusoft.drafthouse.ViewModel
 			// any showtime matches the filter date
 			bool showTimesFilter =
 				!DateFilter.HasValue ||
-				currentMovie.ShowTimes.Any(s => s.MyShowTime.Date.Equals(DateFilter.Value.Date));
+				currentMovie.ShowTimes.Any(s => s.MyShowTime.Value.Date.Equals(DateFilter.Value.Date));
 			return titleFilter && showTimesFilter;
 		}
 
 		internal async Task InitializeAsync(
 			string marketName, string movieTitle,
-			string eMailAddress, string eMailPassword, string toAddress, bool isService)
+			string pushbulletApiToken, bool isService)
 		{
 			try
 			{
@@ -180,18 +181,9 @@ namespace com.magusoft.drafthouse.ViewModel
 						select t.OnLoadMoviesAsync()
 						);
 
-					await Task.WhenAll(
-						from t in market.Theaters
-						from m in t.Movies
-						where MovieTitleContains(m, movieTitle)
-						from s in m.ShowTimes
-						select s.OnCheckTicketsOnSaleAsync()
-						);
-
 					if (isService)
 					{
-						logger.Info($"Sending e-mail to {toAddress}");
-						await SendEmail(market, movieTitle, eMailAddress, eMailPassword, new[] { toAddress });
+						await PushMovies(market, movieTitle, pushbulletApiToken);
 						Application.Current.Shutdown();
 					}
 				}
@@ -207,12 +199,10 @@ namespace com.magusoft.drafthouse.ViewModel
 			}
 		}
 
-		private async Task SendEmail(
+		private async Task PushMovies(
 			Market market,
 			string movieTitle,
-			string address,
-			string password,
-			IEnumerable<string> toAddresses)
+			string pushbulletApiToken)
 		{
 			var moviesOnSale =
 				from t in market.Theaters
@@ -234,8 +224,10 @@ namespace com.magusoft.drafthouse.ViewModel
 				messageBuilder.AppendLine($"{t.Name} has {m.Title} on the following showtimes:");
 				foreach (ShowTime s in movieOnSale)
 				{
-					if (s.MyTicketsState == TicketsState.OnSale)
+					if (s.MyTicketsStatus == TicketsStatus.OnSale)
 						messageBuilder.AppendLine($" - {s.MyShowTime} (Buy: {s.TicketsUrl})");
+					else if (s.MyTicketsStatus == TicketsStatus.SoldOut)
+						messageBuilder.AppendLine($" - {s.MyShowTime} (Sold out)");
 					else
 						messageBuilder.AppendLine($" - {s.MyShowTime} (Tickets not yet on sale)");
 
@@ -244,27 +236,12 @@ namespace com.magusoft.drafthouse.ViewModel
 			}
 			logger.Info(messageBuilder.ToString());
 
-			var fromAddress = new MailAddress(address);
-			var smtp = new SmtpClient("smtp.gmail.com", 587)
-			{
-				EnableSsl = true,
-				DeliveryMethod = SmtpDeliveryMethod.Network,
-				UseDefaultCredentials = false,
-				Credentials = new NetworkCredential(fromAddress.Address, password)
+			var parameters = new Dictionary<string, string>() {
+				["type"] = "note",
+				["title"] = "New tickets available",
+				["body"] = messageBuilder.ToString()
 			};
-
-			using (var message = new MailMessage())
-			{
-				message.From = fromAddress;
-				foreach (string toAddress in toAddresses)
-					message.To.Add(toAddress);
-				message.Subject = "Movies on Sale";
-				string bodyContent = messageBuilder.ToString();
-				message.Body = bodyContent;
-				message.BodyEncoding = Encoding.UTF8;
-
-				await smtp.SendMailAsync(message);
-			}
+			await InternetHelpers.PushbulletPushAsync(pushbulletApiToken, parameters);
 		}
 
 		private XDocument GetConfigurationFile()
@@ -288,7 +265,7 @@ namespace com.magusoft.drafthouse.ViewModel
 				where movie.Attribute("Theater").Value == t.Name
 				where movie.Attribute("Title").Value == m.Title
 				where movie.Attribute("TicketsURL").Value == s.TicketsUrl
-				where movie.Attribute("TicketState").Value == s.MyTicketsState.ToString()
+				where movie.Attribute("TicketState").Value == s.MyTicketsStatus.ToString()
 				select movie
 				).Any();
 		}
@@ -301,7 +278,7 @@ namespace com.magusoft.drafthouse.ViewModel
 					new XAttribute("Theater", t.Name),
 					new XAttribute("Title", m.Title),
 					new XAttribute("TicketsURL", s.TicketsUrl),
-					new XAttribute("TicketState", s.MyTicketsState)
+					new XAttribute("TicketState", s.MyTicketsStatus)
 					)
 				);
 			doc.Save("output.xml");
@@ -313,7 +290,7 @@ namespace com.magusoft.drafthouse.ViewModel
 			{
 				this.Status = string.Format("Reloading markets");
 
-				HtmlDocument marketsDocument = await WebDriverHelper.GetPageHtmlDocumentAsync("https://drafthouse.com/markets");
+				HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync("https://drafthouse.com/markets");
 
 				var markets =
 					from node in marketsDocument.DocumentNode.Descendants("a")
