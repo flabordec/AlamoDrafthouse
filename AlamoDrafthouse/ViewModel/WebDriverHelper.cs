@@ -58,25 +58,26 @@ namespace com.magusoft.drafthouse.ViewModel
 
 	static class WebDriverHelper
 	{
-		internal static HtmlDocument GetPageHtmlDocument(string url)
+		internal static async Task<string> GetPageContentAsync(string url)
 		{
-			using (WebClient client = new WebClient())
+			return await Task.Run(() => 
 			{
-				string source = client.DownloadString(url);
-
-				HtmlDocument document = new HtmlDocument();
-				document.LoadHtml(source);
-
-				return document;
-			}
+				using (WebClient client = new WebClient())
+				{
+					string source = client.DownloadString(url);
+					return source;
+				}
+			});
 		}
 
 		internal static async Task<HtmlDocument> GetPageHtmlDocumentAsync(string url)
 		{
-			return await Task.Run(() =>
-			{
-				return GetPageHtmlDocument(url);
-			});
+			string source = await GetPageContentAsync(url);
+
+			HtmlDocument document = new HtmlDocument();
+			document.LoadHtml(source);
+
+			return document;
 		}
 	}
 }

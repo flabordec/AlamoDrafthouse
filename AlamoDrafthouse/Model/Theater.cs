@@ -14,6 +14,8 @@ using mvvm.magusoft.com;
 using Prism.Commands;
 using Prism.Mvvm;
 using log4net;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace com.magusoft.drafthouse.Model
 {
@@ -52,9 +54,9 @@ namespace com.magusoft.drafthouse.Model
 			this.Name = name;
 			this.TheaterUrl = theaterUrl;
 			this.Movies = new ObservableCollection<Movie>();
-			this.LoadMoviesCommand = DelegateCommand.FromAsyncHandler(OnLoadMoviesAsync);
-
 			this.mMoviesLoaded = false;
+
+			this.LoadMoviesCommand = DelegateCommand.FromAsyncHandler(OnLoadMoviesAsync);
 		}
 
 		public async Task OnLoadMoviesAsync()
@@ -87,30 +89,39 @@ namespace com.magusoft.drafthouse.Model
 				retryCount++;
 
 				HtmlDocument marketsDocument = await WebDriverHelper.GetPageHtmlDocumentAsync(this.CalendarUrl);
-				HtmlNode commentNode = marketsDocument.DocumentNode.SelectSingleNode("//main/comment()[contains(., 'ANGULAR ajax:')]");
-				if (commentNode == null)
+				HtmlNode showTimeControllerNode = marketsDocument.DocumentNode.SelectSingleNode("//div[@ng-controller='ShowtimeController']");
+				Regex showTimesRegex = new Regex(@"initCalendar\('([^']+)','([^']+)'\)");
+				Match showTimesMatch = showTimesRegex.Match(showTimeControllerNode.Attributes["ng-init"].Value);
+				if (!showTimesMatch.Success)
 					continue;
 
-				Regex ajaxRegex = new Regex(@"<!--ANGULAR ajax: ([^ ]+) -->");
-				Match ajaxMatch = ajaxRegex.Match(commentNode.InnerText);
-				if (!ajaxMatch.Success)
-					continue;
+				string showTimesUrlBase = showTimesMatch.Groups[1].Value;
+				string showTimesUrlCode = showTimesMatch.Groups[2].Value;
+				string ajaxUrl = $"{showTimesUrlBase}calendar/{showTimesUrlCode}";
 
-				string ajaxUrl = ajaxMatch.Groups[1].Value;
 
-				HtmlDocument ajaxDocument = await WebDriverHelper.GetPageHtmlDocumentAsync(ajaxUrl);
+				string jsonContent = await WebDriverHelper.GetPageContentAsync(ajaxUrl);
+				JToken json = JToken.Parse(jsonContent, new JsonLoadSettings());
 
-				var dateNodes =
-					from dateNode in ajaxDocument.DocumentNode.Descendants("div")
-					where dateNode.AttributeExistsAndHasValue("class", "Calendar-day")
-					select dateNode;
-
-				IEnumerable<IGrouping<string, ShowTime>> movies =
-					from dateNode in dateNodes
-					from node in dateNode.Descendants("p")
-					where node.AttributeExistsAndHasValue("class", "clearfix")
-					let title = node.Element("strong").Element("a").InnerText
-					from showTime in ParseShowTimes(node, dateNode)
+				// https://drafthouse.com/austin/tickets/showtime/0002/29212
+				//IEnumerable<IGrouping<string, ShowTime>> movies =
+				var movies = 
+					from cinemaToken in json["Calendar"]["Cinemas"]
+					from monthsNode in cinemaToken["Months"]
+					from weeksNode in monthsNode["Weeks"]
+					from daysNode in weeksNode["Days"]
+					where daysNode["Films"] != null
+					from filmsNode in daysNode["Films"]
+					from seriesNode in filmsNode["Series"]
+					from formatsNode in seriesNode["Formats"]
+					from sessionsNode in formatsNode["Sessions"]
+					let cinemaSlug = cinemaToken["MarketSlug"]?.Value<string>()
+					let cinemaId = cinemaToken["CinemaId"]?.Value<string>()
+					let title = filmsNode["FilmName"]?.Value<string>()
+					let showTimeDateTime = sessionsNode["SessionDateTime"]?.Value<DateTime>()
+					let showTimeId = sessionsNode["SessionId"]?.Value<string>()
+					let movieUrl = $"https://drafthouse.com/{cinemaSlug}/tickets/showtime/{cinemaId}/{showTimeId}"
+					let showTime = new ShowTime(showTimeDateTime ?? new DateTime(), movieUrl)
 					group showTime by title into movieGroup
 					select movieGroup;
 

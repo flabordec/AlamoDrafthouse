@@ -39,10 +39,7 @@ namespace com.magusoft.drafthouse
 					{ "p|eMailPassword=", p => eMailPassword = p },
 				};
 			optionSet.Parse(e.Args);
-
-
-
-
+			
 			if (isService)
 			{
 				toAddress = ConfigurationManager.AppSettings["toAddress"];
