@@ -28,6 +28,7 @@ namespace com.magusoft.drafthouse.ViewModel
 {
 	class AlamoDrafthouseDataContext : BindableBase
 	{
+		private const string CONFIG_FILE_NAME = "ComeAndTicket.config.xml";
 		private static readonly ILog logger = LogManager.GetLogger(typeof(AlamoDrafthouseDataContext));
 
 		#region Data
@@ -216,22 +217,25 @@ namespace com.magusoft.drafthouse.ViewModel
 			if (!moviesOnSale.Any())
 				return;
 
+			List<Tuple<Theater, Movie, ShowTime>> moviesSent = new List<Tuple<Theater, Movie, ShowTime>>();
 			StringBuilder messageBuilder = new StringBuilder();
 			foreach (var movieOnSale in moviesOnSale)
 			{
 				Theater t = movieOnSale.Key.Theater;
 				Movie m = movieOnSale.Key.Movie;
-				messageBuilder.AppendLine($"{t.Name} has {m.Title} on the following showtimes:");
+				messageBuilder.AppendLine($"{t.Name} has {m.Title}:");
 				foreach (ShowTime s in movieOnSale)
 				{
 					if (s.MyTicketsStatus == TicketsStatus.OnSale)
-						messageBuilder.AppendLine($" - {s.MyShowTime} (Buy: {s.TicketsUrl})");
+						messageBuilder.AppendLine($" - {s.MyShowTime} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl})");
 					else if (s.MyTicketsStatus == TicketsStatus.SoldOut)
 						messageBuilder.AppendLine($" - {s.MyShowTime} (Sold out)");
+					else if (s.MyTicketsStatus == TicketsStatus.Past)
+						continue;
 					else
-						messageBuilder.AppendLine($" - {s.MyShowTime} (Tickets not yet on sale)");
+						messageBuilder.AppendLine($" - {s.MyShowTime} (Unknown ticket status)");
 
-					MarkMovieSent(t, m, s);
+					moviesSent.Add(new Tuple<Theater, Movie, ShowTime>(t, m, s));
 				}
 			}
 			logger.Info(messageBuilder.ToString());
@@ -242,13 +246,17 @@ namespace com.magusoft.drafthouse.ViewModel
 				["body"] = messageBuilder.ToString()
 			};
 			await InternetHelpers.PushbulletPushAsync(pushbulletApiToken, parameters);
+
+			// Mark all movies that were sent
+			foreach (var tuple in moviesSent)
+				MarkMovieSent(tuple.Item1, tuple.Item2, tuple.Item3);
 		}
 
 		private XDocument GetConfigurationFile()
 		{
-			if (File.Exists("output.xml"))
+			if (File.Exists(CONFIG_FILE_NAME))
 			{
-				return XDocument.Load("output.xml");
+				return XDocument.Load(CONFIG_FILE_NAME);
 			}
 			else
 			{
@@ -281,7 +289,7 @@ namespace com.magusoft.drafthouse.ViewModel
 					new XAttribute("TicketState", s.MyTicketsStatus)
 					)
 				);
-			doc.Save("output.xml");
+			doc.Save(CONFIG_FILE_NAME);
 		}
 
 		private async Task OnReloadMarketsAsync()
