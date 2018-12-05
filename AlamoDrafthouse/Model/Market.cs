@@ -42,7 +42,7 @@ namespace com.magusoft.drafthouse.Model
 			this.Url = url;
 			this.Name = name;
 			this.Theaters = new ObservableCollection<Theater>();
-			this.LoadTheatersCommand = DelegateCommand.FromAsyncHandler(OnLoadTheatersAsync);
+			this.LoadTheatersCommand = new DelegateCommand(async () => await OnLoadTheatersAsync());
 
 			this.mTheatersLoaded = false;
 		}

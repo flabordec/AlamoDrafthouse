@@ -4,10 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
-using OpenQA.Selenium;
-using OpenQA.Selenium.PhantomJS;
-using OpenQA.Selenium.Firefox;
-using OpenQA.Selenium.Chrome;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -16,50 +12,6 @@ using System.IO;
 
 namespace com.magusoft.drafthouse.ViewModel
 {
-	internal class DisposableDriver : IDisposable
-	{
-		private static object Lock = new object();
-
-		private readonly IWebDriver mBrowser;
-		public IWebDriver Browser { get { return mBrowser; } }
-
-		public DisposableDriver()
-		{
-			lock (DisposableDriver.Lock)
-			{
-				var service = PhantomJSDriverService.CreateDefaultService("PhantomJS");
-				service.HideCommandPromptWindow = true;
-				this.mBrowser = new PhantomJSDriver(service);
-			}
-		}
-
-		#region IDisposable Support
-		private bool disposedValue = false; // To detect redundant calls
-
-		protected virtual void Dispose(bool disposing)
-		{
-			if (!disposedValue)
-			{
-				if (disposing)
-				{
-					if (this.Browser != null)
-						this.Browser.Quit();
-				}
-
-				disposedValue = true;
-			}
-		}
-
-		// This code added to correctly implement the disposable pattern.
-		public void Dispose()
-		{
-			// Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-			Dispose(true);
-		}
-		#endregion
-
-	}
-
 	static class InternetHelpers
 	{
 		internal static async Task<string> GetPageContentAsync(string url)
