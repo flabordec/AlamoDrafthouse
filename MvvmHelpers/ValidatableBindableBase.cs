@@ -44,7 +44,7 @@ namespace mvvm.magusoft.com
                 if (_errorsContainer == null)
                 {
                     _errorsContainer =
-                        new ErrorsContainer<string>(pn => this.RaiseErrorsChanged(pn));
+                        new ErrorsContainer<string>(pn => RaiseErrorsChanged(pn));
                 }
 
                 return _errorsContainer;
@@ -78,7 +78,7 @@ namespace mvvm.magusoft.com
                 throw new ArgumentNullException("propertyName");
             }
 
-            var propertyInfo = this.GetType().GetRuntimeProperty(propertyName);
+            var propertyInfo = GetType().GetRuntimeProperty(propertyName);
             if (propertyInfo == null)
             {
                 throw new ArgumentException("Invalid property name", propertyName);
@@ -97,7 +97,7 @@ namespace mvvm.magusoft.com
 
             // Get all the properties decorated with the ValidationAttribute attribute.
             var propertiesToValidate = 
-				this.GetType()
+				GetType()
 				.GetRuntimeProperties()
 				.Where(c => c.GetCustomAttributes(typeof(ValidationAttribute)).Any());
 

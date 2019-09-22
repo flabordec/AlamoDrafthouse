@@ -8,29 +8,27 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using com.magusoft.drafthouse.ExtensionMethods;
-using com.magusoft.drafthouse.ViewModel;
+using com.magusoft.drafthouse.Helpers;
+using GalaSoft.MvvmLight;
+using GalaSoft.MvvmLight.Command;
 using HtmlAgilityPack;
-using mvvm.magusoft.com;
-using Prism.Commands;
-using Prism.Mvvm;
-using log4net;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace com.magusoft.drafthouse.Model
 {
-    public class Theater : ValidatableBindableBase
+    public class Theater : ObservableObject
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof(Theater));
+        private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         public string Name { get; }
         public string TheaterUrl { get; }
 
-        private bool mMoviesLoaded;
+        private bool _moviesLoaded;
         public bool MoviesLoaded
         {
-            get { return mMoviesLoaded; }
-            set { SetProperty(ref mMoviesLoaded, value); }
+            get { return _moviesLoaded; }
+            set { Set(ref _moviesLoaded, value); }
         }
 
         public string CalendarUrl
@@ -40,13 +38,13 @@ namespace com.magusoft.drafthouse.Model
 
         public ObservableCollection<Movie> Movies { get; }
 
-        public DelegateCommand LoadMoviesCommand { get; }
+        public RelayCommand LoadMoviesCommand { get; }
 
         private bool mLoadingMovies;
         public bool LoadingMovies
         {
             get { return mLoadingMovies; }
-            private set { SetProperty(ref mLoadingMovies, value); }
+            private set { Set(ref mLoadingMovies, value); }
         }
 
         public Theater(string name, string theaterUrl)
@@ -54,9 +52,9 @@ namespace com.magusoft.drafthouse.Model
             Name = name;
             TheaterUrl = theaterUrl;
             Movies = new ObservableCollection<Movie>();
-            mMoviesLoaded = false;
+            _moviesLoaded = false;
 
-            LoadMoviesCommand = new DelegateCommand(async () => await OnLoadMoviesAsync());
+            LoadMoviesCommand = new RelayCommand(async () => await OnLoadMoviesAsync());
         }
 
         public async Task OnLoadMoviesAsync()
@@ -64,8 +62,13 @@ namespace com.magusoft.drafthouse.Model
             try
             {
                 LoadingMovies = true;
-                logger.InfoFormat("Reading movies for {0}", Name);
+                logger.Info("Reading movies for {0}", Name);
                 await InnerOnLoadMoviesAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, $"Could not load movies {Name}");
+                _moviesLoaded = false;
             }
             finally
             {
@@ -110,7 +113,8 @@ namespace com.magusoft.drafthouse.Model
                 {
                     // This is a bit weird, but the property that is bound is the name, so the 
                     // name is the property that must have errors. 
-                    ErrorsContainer.SetErrors(() => Name, new[] { "Error loading movies" });
+                    // TODO magus figure this out
+                    // ErrorsContainer.SetErrors(() => Name, new[] { "Error loading movies" });
                     MoviesLoaded = true;
                     break;
                 }
@@ -168,7 +172,8 @@ namespace com.magusoft.drafthouse.Model
                     {
                         // This is a bit weird, but the property that is bound is the name, so the 
                         // name is the property that must have errors. 
-                        ErrorsContainer.SetErrors(() => Name, new[] { "Error loading movies" });
+                        // TODO magus Figure this out
+                        // ErrorsContainer.SetErrors(() => Name, new[] { "Error loading movies" });
                         MoviesLoaded = true;
                         break;
                     }

@@ -4,37 +4,37 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using com.magusoft.drafthouse.ViewModel;
+using com.magusoft.drafthouse.Helpers;
+using GalaSoft.MvvmLight;
 using HtmlAgilityPack;
-using Prism.Commands;
-using Prism.Mvvm;
-using log4net;
+using com.magusoft.drafthouse.ExtensionMethods;
+using GalaSoft.MvvmLight.Command;
 
 namespace com.magusoft.drafthouse.Model
 {
-    public class Market : BindableBase
+    public class Market : ObservableObject
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof(Theater));
+        private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         public string Url { get; }
         public string Name { get; }
 
-        private bool mTheatersLoaded;
+        private bool _theatersLoaded;
         public bool TheatersLoaded
         {
-            get { return mTheatersLoaded; }
-            private set { SetProperty(ref mTheatersLoaded, value); }
+            get { return _theatersLoaded; }
+            private set { Set(ref _theatersLoaded, value); }
         }
 
         public ObservableCollection<Theater> Theaters { get; }
 
-        public DelegateCommand LoadTheatersCommand { get; }
+        public RelayCommand LoadTheatersCommand { get; }
 
         private bool mLoadingTheaters;
         public bool LoadingTheaters
         {
             get { return mLoadingTheaters; }
-            private set { SetProperty(ref mLoadingTheaters, value); }
+            private set { Set(ref mLoadingTheaters, value); }
         }
 
         public Market(string url, string name)
@@ -42,9 +42,9 @@ namespace com.magusoft.drafthouse.Model
             Url = url;
             Name = name;
             Theaters = new ObservableCollection<Theater>();
-            LoadTheatersCommand = new DelegateCommand(async () => await OnLoadTheatersAsync());
+            LoadTheatersCommand = new RelayCommand(async () => await OnLoadTheatersAsync());
 
-            mTheatersLoaded = false;
+            _theatersLoaded = false;
         }
 
         public async Task OnLoadTheatersAsync()
@@ -52,7 +52,7 @@ namespace com.magusoft.drafthouse.Model
             try
             {
                 LoadingTheaters = true;
-                logger.InfoFormat("Reading theaters for {0}", Name);
+                logger.Info("Reading theaters for {0}", Name);
                 await InnerOnLoadTheatersAsync();
             }
             finally

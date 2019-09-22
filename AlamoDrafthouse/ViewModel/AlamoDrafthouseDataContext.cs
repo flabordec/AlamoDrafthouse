@@ -23,307 +23,308 @@ using System.Net.Http;
 
 namespace com.magusoft.drafthouse.ViewModel
 {
-	class AlamoDrafthouseDataContext : BindableBase
-	{
-		private const string CONFIG_FILE_NAME = "ComeAndTicket.config.xml";
-		private static readonly ILog logger = LogManager.GetLogger(typeof(AlamoDrafthouseDataContext));
+    class AlamoDrafthouseDataContext : BindableBase
+    {
+        private const string CONFIG_FILE_NAME = "ComeAndTicket.config.xml";
+        private static readonly ILog logger = LogManager.GetLogger(typeof(AlamoDrafthouseDataContext));
 
-		#region Data
-		private string mTitleFilter;
-		public string TitleFilter
-		{
-			get { return mTitleFilter; }
-			set
-			{
-				SetProperty(ref mTitleFilter, value);
-				RefreshFilters();
-			}
-		}
+        #region Data
+        private string mTitleFilter;
+        public string TitleFilter
+        {
+            get { return mTitleFilter; }
+            set
+            {
+                SetProperty(ref mTitleFilter, value);
+                RefreshFilters();
+            }
+        }
 
-		private DateTime? mDateFilter;
-		public DateTime? DateFilter
-		{
-			get { return mDateFilter; }
-			set
-			{
-				SetProperty(ref mDateFilter, value);
-				RefreshFilters();
-			}
-		}
+        private DateTime? mDateFilter;
+        public DateTime? DateFilter
+        {
+            get { return mDateFilter; }
+            set
+            {
+                SetProperty(ref mDateFilter, value);
+                RefreshFilters();
+            }
+        }
 
-		private readonly ObservableCollection<Market> mMarkets;
-		public ObservableCollection<Market> Markets
-		{
-			get
-			{
-				return mMarkets;
-			}
-		}
-		#endregion
+        private readonly ObservableCollection<Market> mMarkets;
+        public ObservableCollection<Market> Markets
+        {
+            get
+            {
+                return mMarkets;
+            }
+        }
+        #endregion
 
-		#region State
-		private string mStatus;
-		public string Status
-		{
-			get { return mStatus; }
-			set { SetProperty(ref mStatus, value); }
-		}
-		#endregion
+        #region State
+        private string mStatus;
+        public string Status
+        {
+            get { return mStatus; }
+            set { SetProperty(ref mStatus, value); }
+        }
+        #endregion
 
-		public AlamoDrafthouseDataContext()
-		{
-			this.mTitleFilter = string.Empty;
-			this.mDateFilter = null;
+        public AlamoDrafthouseDataContext()
+        {
+            mTitleFilter = string.Empty;
+            mDateFilter = null;
 
-			this.mMarkets = new ObservableCollection<Market>();
-			this.Markets.CollectionChanged += Markets_CollectionChanged;
-		}
+            mMarkets = new ObservableCollection<Market>();
+            Markets.CollectionChanged += Markets_CollectionChanged;
+        }
 
-		private void Markets_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-		{
-			if (e.OldItems != null)
-			{
-				foreach (Market market in e.OldItems)
-					market.Theaters.CollectionChanged -= Theaters_CollectionChanged;
-			}
+        private void Markets_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.OldItems != null)
+            {
+                foreach (Market market in e.OldItems)
+                    market.Theaters.CollectionChanged -= Theaters_CollectionChanged;
+            }
 
-			if (e.NewItems != null)
-			{
-				foreach (Market market in e.NewItems)
-					market.Theaters.CollectionChanged += Theaters_CollectionChanged;
-			}
-		}
+            if (e.NewItems != null)
+            {
+                foreach (Market market in e.NewItems)
+                    market.Theaters.CollectionChanged += Theaters_CollectionChanged;
+            }
+        }
 
-		private void Theaters_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-		{
-			if (e.OldItems != null)
-			{
-				foreach (Theater theater in e.OldItems)
-					theater.Movies.CollectionChanged -= Movies_CollectionChanged;
-			}
+        private void Theaters_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.OldItems != null)
+            {
+                foreach (Theater theater in e.OldItems)
+                    theater.Movies.CollectionChanged -= Movies_CollectionChanged;
+            }
 
-			if (e.NewItems != null)
-			{
-				foreach (Theater theater in e.NewItems)
-				{
-					theater.Movies.CollectionChanged += Movies_CollectionChanged;
-					CollectionViewSource.GetDefaultView(theater.Movies).Filter = FilterMovie;
-				}
-			}
-		}
+            if (e.NewItems != null)
+            {
+                foreach (Theater theater in e.NewItems)
+                {
+                    theater.Movies.CollectionChanged += Movies_CollectionChanged;
+                    CollectionViewSource.GetDefaultView(theater.Movies).Filter = FilterMovie;
+                }
+            }
+        }
 
-		private void Movies_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-		{
-			if (e.NewItems != null)
-			{
-				foreach (Movie movie in e.NewItems)
-				{
-					CollectionViewSource.GetDefaultView(movie.ShowTimes).Filter = FilterShowTimes;
-				}
-			}
-		}
+        private void Movies_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+            {
+                foreach (Movie movie in e.NewItems)
+                {
+                    CollectionViewSource.GetDefaultView(movie.ShowTimes).Filter = FilterShowTimes;
+                }
+            }
+        }
 
-		private bool FilterShowTimes(object obj)
-		{
-			Debug.Assert(obj is ShowTime);
-			ShowTime showTime = (ShowTime)obj;
+        private bool FilterShowTimes(object obj)
+        {
+            Debug.Assert(obj is ShowTime);
+            ShowTime showTime = (ShowTime)obj;
 
-			return !DateFilter.HasValue || showTime.MyShowTime.Value.Date.Equals(DateFilter.Value.Date);
-		}
+            return !DateFilter.HasValue || showTime.MyShowTime.Value.Date.Equals(DateFilter.Value.Date);
+        }
 
-		private bool MovieTitleContains(Movie movie, string wantedTitle)
-		{
-			return movie.Title.ToLowerInvariant().Contains(
-				wantedTitle.ToLowerInvariant());
-		}
+        private bool MovieTitleContains(Movie movie, string wantedTitle)
+        {
+            return movie.Title.ToLowerInvariant().Contains(
+                wantedTitle.ToLowerInvariant());
+        }
 
-		private bool FilterMovie(object obj)
-		{
-			Debug.Assert(obj is Movie);
-			Movie currentMovie = (Movie)obj;
-			bool titleFilter = MovieTitleContains(currentMovie, this.TitleFilter);
-			// No date time filter or...
-			// any showtime matches the filter date
-			bool showTimesFilter =
-				!DateFilter.HasValue ||
-				currentMovie.ShowTimes.Any(s => s.MyShowTime.Value.Date.Equals(DateFilter.Value.Date));
-			return titleFilter && showTimesFilter;
-		}
+        private bool FilterMovie(object obj)
+        {
+            Debug.Assert(obj is Movie);
+            Movie currentMovie = (Movie)obj;
+            bool titleFilter = MovieTitleContains(currentMovie, TitleFilter);
+            // No date time filter or...
+            // any showtime matches the filter date
+            bool showTimesFilter =
+                !DateFilter.HasValue ||
+                currentMovie.ShowTimes.Any(s => s.MyShowTime.Value.Date.Equals(DateFilter.Value.Date));
+            return titleFilter && showTimesFilter;
+        }
 
-		internal async Task InitializeAsync(
-			string marketName, string movieTitle,
-			string pushbulletApiToken, bool isService)
-		{
-			try
-			{
-				this.TitleFilter = movieTitle;
+        internal async Task InitializeAsync(
+            string marketName, string movieTitle,
+            string pushbulletApiToken, bool isService)
+        {
+            try
+            {
+                TitleFilter = movieTitle;
 
-				this.Status = string.Format("Initializing");
+                Status = string.Format("Initializing");
 
-				logger.Info("Reading markets");
-				await OnReloadMarketsAsync();
+                logger.Info("Reading markets");
+                await OnReloadMarketsAsync();
 
-				var market = (
-					from m in this.Markets
-					where m.Name.ToLowerInvariant() == marketName
-					select m
-					).SingleOrDefault();
+                var market = (
+                    from m in Markets
+                    where m.Name.ToLowerInvariant() == marketName
+                    select m
+                    ).SingleOrDefault();
 
-				if (market != null)
-				{
+                if (market != null)
+                {
 
-					await market.OnLoadTheatersAsync();
+                    await market.OnLoadTheatersAsync();
 
-					await Task.WhenAll(
-						from t in market.Theaters
-						select t.OnLoadMoviesAsync()
-						);
+                    await Task.WhenAll(
+                        from t in market.Theaters
+                        select t.OnLoadMoviesAsync()
+                        );
 
-					if (isService)
-					{
-						await PushMovies(market, movieTitle, pushbulletApiToken);
-						Application.Current.Shutdown();
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				logger.Error("Exception while initializing", ex);
-				throw;
-			}
-			finally
-			{
-				this.Status = string.Format("Finished Initializing");
-			}
-		}
+                    if (isService)
+                    {
+                        await PushMovies(market, movieTitle, pushbulletApiToken);
+                        Application.Current.Shutdown();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error("Exception while initializing", ex);
+                throw;
+            }
+            finally
+            {
+                Status = string.Format("Finished Initializing");
+            }
+        }
 
-		private async Task PushMovies(
-			Market market,
-			string movieTitle,
-			string pushbulletApiToken)
-		{
-			var moviesOnSale =
-				from t in market.Theaters
-				from m in t.Movies
-				from s in m.ShowTimes
-				where MovieTitleContains(m, movieTitle)
-				where !MovieAlreadySent(t, m, s)
-				group s by new { Theater = t, Movie = m } into showtimes
-				select showtimes;
+        private async Task PushMovies(
+            Market market,
+            string movieTitle,
+            string pushbulletApiToken)
+        {
+            var moviesOnSale =
+                from t in market.Theaters
+                from m in t.Movies
+                from s in m.ShowTimes
+                where MovieTitleContains(m, movieTitle)
+                where !MovieAlreadySent(t, m, s)
+                group s by new { Theater = t, Movie = m } into showtimes
+                select showtimes;
 
-			if (!moviesOnSale.Any())
-				return;
+            if (!moviesOnSale.Any())
+                return;
 
-			List<Tuple<Theater, Movie, ShowTime>> moviesSent = new List<Tuple<Theater, Movie, ShowTime>>();
-			StringBuilder messageBuilder = new StringBuilder();
-			foreach (var movieOnSale in moviesOnSale)
-			{
-				Theater t = movieOnSale.Key.Theater;
-				Movie m = movieOnSale.Key.Movie;
-				messageBuilder.AppendLine($"{t.Name} has {m.Title}:");
-				foreach (ShowTime s in movieOnSale)
-				{
-					if (s.MyTicketsStatus == TicketsStatus.OnSale)
-						messageBuilder.AppendLine($" - {s.MyShowTime} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl})");
-					else if (s.MyTicketsStatus == TicketsStatus.SoldOut)
-						messageBuilder.AppendLine($" - {s.MyShowTime} (Sold out)");
-					else if (s.MyTicketsStatus == TicketsStatus.Past)
-						continue;
-					else
-						messageBuilder.AppendLine($" - {s.MyShowTime} (Unknown ticket status)");
+            List<Tuple<Theater, Movie, ShowTime>> moviesSent = new List<Tuple<Theater, Movie, ShowTime>>();
+            StringBuilder messageBuilder = new StringBuilder();
+            foreach (var movieOnSale in moviesOnSale)
+            {
+                Theater t = movieOnSale.Key.Theater;
+                Movie m = movieOnSale.Key.Movie;
+                messageBuilder.AppendLine($"{t.Name} has {m.Title}:");
+                foreach (ShowTime s in movieOnSale)
+                {
+                    if (s.MyTicketsStatus == TicketsStatus.OnSale)
+                        messageBuilder.AppendLine($" - {s.MyShowTime} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl})");
+                    else if (s.MyTicketsStatus == TicketsStatus.SoldOut)
+                        messageBuilder.AppendLine($" - {s.MyShowTime} (Sold out)");
+                    else if (s.MyTicketsStatus == TicketsStatus.Past)
+                        continue;
+                    else
+                        messageBuilder.AppendLine($" - {s.MyShowTime} (Unknown ticket status)");
 
-					moviesSent.Add(new Tuple<Theater, Movie, ShowTime>(t, m, s));
-				}
-			}
-			logger.Info(messageBuilder.ToString());
+                    moviesSent.Add(new Tuple<Theater, Movie, ShowTime>(t, m, s));
+                }
+            }
+            logger.Info(messageBuilder.ToString());
 
-			var parameters = new Dictionary<string, string>() {
-				["type"] = "note",
-				["title"] = "New tickets available",
-				["body"] = messageBuilder.ToString()
-			};
-			await InternetHelpers.PushbulletPushAsync(pushbulletApiToken, parameters);
+            var parameters = new Dictionary<string, string>()
+            {
+                ["type"] = "note",
+                ["title"] = "New tickets available",
+                ["body"] = messageBuilder.ToString()
+            };
+            await InternetHelpers.PushbulletPushAsync(pushbulletApiToken, parameters);
 
-			// Mark all movies that were sent
-			foreach (var tuple in moviesSent)
-				MarkMovieSent(tuple.Item1, tuple.Item2, tuple.Item3);
-		}
+            // Mark all movies that were sent
+            foreach (var tuple in moviesSent)
+                MarkMovieSent(tuple.Item1, tuple.Item2, tuple.Item3);
+        }
 
-		private XDocument GetConfigurationFile()
-		{
-			if (File.Exists(CONFIG_FILE_NAME))
-			{
-				return XDocument.Load(CONFIG_FILE_NAME);
-			}
-			else
-			{
-				return new XDocument(
-					new XElement("SentMovies"));
-			}
-		}
+        private XDocument GetConfigurationFile()
+        {
+            if (File.Exists(CONFIG_FILE_NAME))
+            {
+                return XDocument.Load(CONFIG_FILE_NAME);
+            }
+            else
+            {
+                return new XDocument(
+                    new XElement("SentMovies"));
+            }
+        }
 
-		private bool MovieAlreadySent(Theater t, Movie m, ShowTime s)
-		{
-			XDocument doc = GetConfigurationFile();
-			return (
-				from movie in doc.Descendants("Movie")
-				where movie.Attribute("Theater").Value == t.Name
-				where movie.Attribute("Title").Value == m.Title
-				where movie.Attribute("TicketsURL").Value == s.TicketsUrl
-				where movie.Attribute("TicketState").Value == s.MyTicketsStatus.ToString()
-				select movie
-				).Any();
-		}
+        private bool MovieAlreadySent(Theater t, Movie m, ShowTime s)
+        {
+            XDocument doc = GetConfigurationFile();
+            return (
+                from movie in doc.Descendants("Movie")
+                where movie.Attribute("Theater").Value == t.Name
+                where movie.Attribute("Title").Value == m.Title
+                where movie.Attribute("TicketsURL").Value == s.TicketsUrl
+                where movie.Attribute("TicketState").Value == s.MyTicketsStatus.ToString()
+                select movie
+                ).Any();
+        }
 
-		private void MarkMovieSent(Theater t, Movie m, ShowTime s)
-		{
-			XDocument doc = GetConfigurationFile();
-			doc.Root.Add(
-				new XElement("Movie",
-					new XAttribute("Theater", t.Name),
-					new XAttribute("Title", m.Title),
-					new XAttribute("TicketsURL", s.TicketsUrl),
-					new XAttribute("TicketState", s.MyTicketsStatus)
-					)
-				);
-			doc.Save(CONFIG_FILE_NAME);
-		}
+        private void MarkMovieSent(Theater t, Movie m, ShowTime s)
+        {
+            XDocument doc = GetConfigurationFile();
+            doc.Root.Add(
+                new XElement("Movie",
+                    new XAttribute("Theater", t.Name),
+                    new XAttribute("Title", m.Title),
+                    new XAttribute("TicketsURL", s.TicketsUrl),
+                    new XAttribute("TicketState", s.MyTicketsStatus)
+                    )
+                );
+            doc.Save(CONFIG_FILE_NAME);
+        }
 
-		private async Task OnReloadMarketsAsync()
-		{
-			try
-			{
-				this.Status = string.Format("Reloading markets");
+        private async Task OnReloadMarketsAsync()
+        {
+            try
+            {
+                Status = string.Format("Reloading markets");
 
-				HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync("https://drafthouse.com/markets");
+                HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync("https://drafthouse.com/markets");
 
-				var markets =
-					from node in marketsDocument.DocumentNode.Descendants("a")
-					where node.Attributes["id"]?.Value == "markets-page"
-					let url = node.Attributes["href"].Value
-					select new Market(url, node.InnerText);
+                var markets =
+                    from node in marketsDocument.DocumentNode.Descendants("a")
+                    where node.Attributes["id"]?.Value == "markets-page"
+                    let url = node.Attributes["href"].Value
+                    select new Market(url, node.InnerText);
 
-				this.Markets.AddRange(markets);
-			}
-			finally
-			{
-				this.Status = string.Format("Reloaded markets");
-			}
-		}
+                Markets.AddRange(markets);
+            }
+            finally
+            {
+                Status = string.Format("Reloaded markets");
+            }
+        }
 
-		private void RefreshFilters()
-		{
-			foreach (Market market in this.Markets)
-			{
-				foreach (Theater theater in market.Theaters)
-				{
-					CollectionViewSource.GetDefaultView(theater.Movies).Refresh();
-					foreach (Movie movie in theater.Movies)
-					{
-						CollectionViewSource.GetDefaultView(movie.ShowTimes).Refresh();
-					}
-				}
-			}
-		}
-	}
+        private void RefreshFilters()
+        {
+            foreach (Market market in Markets)
+            {
+                foreach (Theater theater in market.Theaters)
+                {
+                    CollectionViewSource.GetDefaultView(theater.Movies).Refresh();
+                    foreach (Movie movie in theater.Movies)
+                    {
+                        CollectionViewSource.GetDefaultView(movie.ShowTimes).Refresh();
+                    }
+                }
+            }
+        }
+    }
 }

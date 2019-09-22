@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ComeAndTicketConsole": {
+      "commandName": "Project",
+      "commandLineArgs": "--market=Austin --movie=Pancake --pushbulletApiToken=o.ZLqyDvXi0qXlYzdsNT9osfJ35wphrVoR"
+    }
+  }
+}

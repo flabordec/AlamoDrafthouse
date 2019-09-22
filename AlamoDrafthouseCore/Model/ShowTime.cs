@@ -4,11 +4,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Prism.Commands;
-using Prism.Mvvm;
-using com.magusoft.drafthouse.ViewModel;
+using GalaSoft.MvvmLight;
+using GalaSoft.MvvmLight.Command;
 using HtmlAgilityPack;
-using log4net;
 
 namespace com.magusoft.drafthouse.Model
 {
@@ -21,12 +19,12 @@ namespace com.magusoft.drafthouse.Model
         Past,
     }
 
-    public class ShowTime : BindableBase
+    public class ShowTime : ObservableObject
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof(ShowTime));
+        private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         public DateTime? MyShowTime { get; }
-        public DelegateCommand BuyTicketCommand { get; }
+        public RelayCommand BuyTicketCommand { get; }
 
         public TicketsStatus MyTicketsStatus { get; }
         public int? SeatsLeft { get; }
@@ -40,8 +38,7 @@ namespace com.magusoft.drafthouse.Model
             MyTicketsStatus = StringToTicketsSaleStatus(ticketsSaleStatusString);
             SeatsLeft = seatsLeft;
 
-            BuyTicketCommand = new DelegateCommand(OnBuyTicket, CanBuyTicket);
-            BuyTicketCommand.ObservesProperty(() => MyTicketsStatus);
+            BuyTicketCommand = new RelayCommand(OnBuyTicket, CanBuyTicket);
         }
 
         private TicketsStatus StringToTicketsSaleStatus(string ticketsSaleStatusString)
