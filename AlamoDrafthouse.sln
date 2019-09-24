@@ -7,9 +7,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlamoDrafthouse", "AlamoDra
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MvvmHelpers", "MvvmHelpers\MvvmHelpers.csproj", "{7877AEA6-0B00-41B5-9880-62075CC75AF8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlamoDrafthouseCore", "AlamoDrafthouseCore\AlamoDrafthouseCore.csproj", "{FE89080F-071A-449C-B51A-46F141174FF5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AlamoDrafthouseCore", "AlamoDrafthouseCore\AlamoDrafthouseCore.csproj", "{FE89080F-071A-449C-B51A-46F141174FF5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComeAndTicketConsole", "ComeAndTicketConsole\ComeAndTicketConsole.csproj", "{BBD4FB7B-6105-42D5-A65B-3FE82C773991}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketConsole", "ComeAndTicketConsole\ComeAndTicketConsole.csproj", "{BBD4FB7B-6105-42D5-A65B-3FE82C773991}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComeAndTicketUi", "ComeAndTicketUi\ComeAndTicketUi.csproj", "{C7CE9630-49E5-46E4-8B77-71F78B299DF8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{BBD4FB7B-6105-42D5-A65B-3FE82C773991}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BBD4FB7B-6105-42D5-A65B-3FE82C773991}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BBD4FB7B-6105-42D5-A65B-3FE82C773991}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7CE9630-49E5-46E4-8B77-71F78B299DF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7CE9630-49E5-46E4-8B77-71F78B299DF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7CE9630-49E5-46E4-8B77-71F78B299DF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7CE9630-49E5-46E4-8B77-71F78B299DF8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

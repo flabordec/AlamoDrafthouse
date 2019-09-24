@@ -4,17 +4,30 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using com.magusoft.drafthouse.Helpers;
 using GalaSoft.MvvmLight;
 using HtmlAgilityPack;
-using com.magusoft.drafthouse.ExtensionMethods;
 using GalaSoft.MvvmLight.Command;
+using MaguSoft.ComeAndTicket.Core.Helpers;
+using MaguSoft.ComeAndTicket.Core.ExtensionMethods;
 
-namespace com.magusoft.drafthouse.Model
+namespace MaguSoft.ComeAndTicket.Core.Model
 {
     public class Market : ObservableObject
     {
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+
+        public static async Task<IEnumerable<Market>> LoadAllMarketsAsync()
+        {
+            HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync("https://drafthouse.com/markets");
+
+            var markets =
+                from node in marketsDocument.DocumentNode.Descendants("a")
+                where node.Attributes["id"]?.Value == "markets-page"
+                let url = node.Attributes["href"].Value
+                select new Market(url, node.InnerText);
+
+            return markets;
+        }
 
         public string Url { get; }
         public string Name { get; }

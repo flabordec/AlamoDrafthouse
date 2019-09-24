@@ -7,25 +7,25 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace com.magusoft.drafthouse.Model
+namespace MaguSoft.ComeAndTicket.Core.Model
 {
-	public class Movie : ObservableObject
-	{
-		public string Title { get; }
-		
-		public Theater Theater { get; }
+    public class Movie : ObservableObject
+    {
+        public string Title { get; }
 
-		private readonly List<ShowTime> mShowTimes;
-		public IEnumerable<ShowTime> ShowTimes
-		{
-			get { return mShowTimes; }
-		}
+        public Theater Theater { get; }
 
-		public Movie(Theater theater, string title, IEnumerable<ShowTime> showTimes)
-		{
-			Theater = theater;
-			Title = title;
-			mShowTimes = new List<ShowTime>(showTimes);
-		}
-	}
+        private readonly List<ShowTime> mShowTimes;
+        public IEnumerable<ShowTime> ShowTimes
+        {
+            get { return mShowTimes; }
+        }
+
+        public Movie(Theater theater, string title, IEnumerable<ShowTime> showTimes)
+        {
+            Theater = theater;
+            Title = title;
+            mShowTimes = new List<ShowTime>(showTimes);
+        }
+    }
 }

@@ -7,15 +7,15 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using com.magusoft.drafthouse.ExtensionMethods;
-using com.magusoft.drafthouse.Helpers;
 using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using HtmlAgilityPack;
+using MaguSoft.ComeAndTicket.Core.ExtensionMethods;
+using MaguSoft.ComeAndTicket.Core.Helpers;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace com.magusoft.drafthouse.Model
+namespace MaguSoft.ComeAndTicket.Core.Model
 {
     public class Theater : ObservableObject
     {

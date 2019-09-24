@@ -1,18 +1,22 @@
-﻿using com.magusoft.drafthouse.Helpers;
-using CommandLine;
+﻿using CommandLine;
 using HtmlAgilityPack;
 using NLog;
 using System;
 using System.Collections.Generic;
-using com.magusoft.drafthouse.Model;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Text;
 using System.Xml.Linq;
 using System.IO;
 using System.Diagnostics;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using MaguSoft.ComeAndTicket.Core.Model;
+using MaguSoft.ComeAndTicket.Core.Helpers;
 
-namespace ComeAndTicketConsole
+namespace MaguSoft.ComeAndTicket.Console
 {
     public class Options
     {
@@ -20,8 +24,10 @@ namespace ComeAndTicketConsole
         public string Market { get; set; }
         [Option('v', "movie", Required = true, HelpText = "The movie to search for.")]
         public string Movie { get; set; }
-        [Option('p', "pushbulletApiToken", Required = true, HelpText = "The PushBullet token to use to push messages")]
+        [Option('p', "pushbullet-api-token", Required = true, HelpText = "The PushBullet token to use to push messages")]
         public string PushbulletApiToken { get; set; }
+        [Option('d', "device-id", Required = true, HelpText = "The PushBullet device identifier to push to")]
+        public string DeviceIdentifier { get; set; }
     }
 
     class Program
@@ -56,23 +62,13 @@ namespace ComeAndTicketConsole
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine("Error while running");
-                    Console.Error.WriteLine(ex);
-                    logger.Error(ex);
+                    logger.Error(ex, "Exception while running");
                     return -1;
                 }
             }
             else
             {
                 return -2;
-            }
-        }
-
-        private static void HandleParseError(IEnumerable<Error> errors)
-        {
-            foreach (var error in errors)
-            {
-                logger.Error($"Invalid value for parameter: {error.Tag}");
             }
         }
 
@@ -91,7 +87,6 @@ namespace ComeAndTicketConsole
 
         private static async Task<int> RunAndReturnExitCodeAsync(Options opts)
         {
-
             logger.Info("Reading markets");
             var markets = await OnReloadMarketsAsync();
 
@@ -111,7 +106,7 @@ namespace ComeAndTicketConsole
                     select t.OnLoadMoviesAsync()
                     );
 
-                await PushMovies(market, opts);
+                await PushMoviesAsync(market, opts);
 
                 return 0;
             }
@@ -122,14 +117,16 @@ namespace ComeAndTicketConsole
             }
         }
 
-        private static async Task PushMovies(Market market, Options opts)
+        private static async Task PushMoviesAsync(Market market, Options opts)
         {
+            XDocument configuration = GetConfigurationFile();
+
             var moviesOnSale =
                 from t in market.Theaters
                 from m in t.Movies
                 from s in m.ShowTimes
                 where MovieTitleContains(m, opts.Movie)
-                where !MovieAlreadySent(t, m, s)
+                where !MovieAlreadySent(configuration, t, m, s)
                 group s by new { Theater = t, Movie = m } into showtimes
                 select showtimes;
 
@@ -159,17 +156,29 @@ namespace ComeAndTicketConsole
             }
             logger.Info(messageBuilder.ToString());
 
-            var parameters = new Dictionary<string, string>()
-            {
-                ["type"] = "note",
-                ["title"] = "New tickets available",
-                ["body"] = messageBuilder.ToString()
-            };
-            await InternetHelpers.PushbulletPushAsync(opts.PushbulletApiToken, parameters);
+            var devices = await PushbulletGetAsync(
+                "v2/devices",
+                opts.PushbulletApiToken);
 
-            // Mark all movies that were sent
+            await PushbulletPushAsync(
+                "v2/pushes",
+                opts.PushbulletApiToken,
+                new Dictionary<string, string>()
+                {
+                    ["type"] = "note",
+                    ["title"] = "New tickets available",
+                    ["device_iden"] = opts.DeviceIdentifier,
+                    ["body"] = messageBuilder.ToString()
+                });
+
+            SaveConfiguration(configuration, moviesSent);
+        }
+
+        private static void SaveConfiguration(XDocument configuration, List<Tuple<Theater, Movie, ShowTime>> moviesSent)
+        {
             foreach (var tuple in moviesSent)
-                MarkMovieSent(tuple.Item1, tuple.Item2, tuple.Item3);
+                MarkMovieSent(configuration, tuple.Item1, tuple.Item2, tuple.Item3);
+            configuration.Save(CONFIG_FILE_NAME);
         }
 
         private static XDocument GetConfigurationFile()
@@ -190,11 +199,10 @@ namespace ComeAndTicketConsole
             return movie.Title.Contains(wantedTitle, StringComparison.CurrentCultureIgnoreCase);
         }
 
-        private static bool MovieAlreadySent(Theater t, Movie m, ShowTime s)
+        private static bool MovieAlreadySent(XDocument configuration, Theater t, Movie m, ShowTime s)
         {
-            XDocument doc = GetConfigurationFile();
             return (
-                from movie in doc.Descendants("Movie")
+                from movie in configuration.Descendants("Movie")
                 where movie.Attribute("Theater").Value == t.Name
                 where movie.Attribute("Title").Value == m.Title
                 where movie.Attribute("TicketsURL").Value == s.TicketsUrl
@@ -203,10 +211,9 @@ namespace ComeAndTicketConsole
                 ).Any();
         }
 
-        private static void MarkMovieSent(Theater t, Movie m, ShowTime s)
+        private static void MarkMovieSent(XDocument configuration, Theater t, Movie m, ShowTime s)
         {
-            XDocument doc = GetConfigurationFile();
-            doc.Root.Add(
+            configuration.Root.Add(
                 new XElement("Movie",
                     new XAttribute("Theater", t.Name),
                     new XAttribute("Title", m.Title),
@@ -214,7 +221,52 @@ namespace ComeAndTicketConsole
                     new XAttribute("TicketState", s.MyTicketsStatus)
                     )
                 );
-            doc.Save(CONFIG_FILE_NAME);
+        }
+
+        public static async Task<JObject> PushbulletGetAsync(
+            string method,
+            string authenticationToken)
+        {
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authenticationToken);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            Uri baseUri = new Uri("https://api.pushbullet.com");
+            Uri methodUri = new Uri(baseUri, method);
+            var response = await client.GetAsync(methodUri);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.Error("Could not GET from '{0}', response: {1}", methodUri, response.StatusCode);
+                throw new Exception("Could not push");
+            }
+
+            var responseString = await response.Content.ReadAsStringAsync();
+            var responseObject = JsonConvert.DeserializeObject<JObject>(responseString);
+            return responseObject;
+        }
+
+        public static async Task<JObject> PushbulletPushAsync(
+            string method,
+            string authenticationToken,
+            Dictionary<string, string> parameters)
+        {
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authenticationToken);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            string parametersString = JsonConvert.SerializeObject(parameters);
+            Uri baseUri = new Uri("https://api.pushbullet.com");
+            Uri methodUri = new Uri(baseUri, method);
+            var response = await client.PostAsync(methodUri, new StringContent(parametersString, Encoding.UTF8, "application/json"));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.Error("Could not PUSH to '{0}' content '{1}', response: {2}", methodUri, parametersString, response.StatusCode);
+                throw new Exception("Could not push");
+            }
+
+            var responseString = await response.Content.ReadAsStringAsync();
+            var responseDict = JsonConvert.DeserializeObject<JObject>(responseString);
+            return responseDict;
         }
 
     }

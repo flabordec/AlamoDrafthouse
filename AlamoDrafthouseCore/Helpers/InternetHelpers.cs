@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace com.magusoft.drafthouse.Helpers
+namespace MaguSoft.ComeAndTicket.Core.Helpers
 {
     public static class InternetHelpers
     {
@@ -20,7 +21,7 @@ namespace com.magusoft.drafthouse.Helpers
                 // the HttpClient will not follow these redirects becuase of security, but 
                 // we need to follow the redirect to get data.
                 var response = await client.GetAsync(url);
-                if (response.StatusCode == HttpStatusCode.Redirect || 
+                if (response.StatusCode == HttpStatusCode.Redirect ||
                     response.StatusCode == HttpStatusCode.PermanentRedirect ||
                     response.StatusCode == HttpStatusCode.RedirectMethod ||
                     response.StatusCode == HttpStatusCode.TemporaryRedirect)
@@ -44,25 +45,5 @@ namespace com.magusoft.drafthouse.Helpers
 
             return document;
         }
-
-        public static async Task PushbulletPushAsync(
-            string authenticationToken,
-            Dictionary<string, string> parameters)
-        {
-            WebRequest request = WebRequest.Create("https://api.pushbullet.com/v2/pushes");
-            request.Method = "POST";
-            request.Headers.Add("Authorization", $"Bearer {authenticationToken}");
-            request.ContentType = "application/json; charset=UTF-8";
-
-            string parametersString = Newtonsoft.Json.JsonConvert.SerializeObject(parameters);
-            byte[] parametersByteArray = Encoding.UTF8.GetBytes(parametersString);
-
-            request.ContentLength = parametersByteArray.Length;
-            using (Stream dataStream = request.GetRequestStream())
-            {
-                await dataStream.WriteAsync(parametersByteArray, 0, parametersByteArray.Length);
-            }
-        }
-
     }
 }

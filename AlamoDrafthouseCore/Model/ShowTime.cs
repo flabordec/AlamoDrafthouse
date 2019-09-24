@@ -8,7 +8,7 @@ using GalaSoft.MvvmLight;
 using GalaSoft.MvvmLight.Command;
 using HtmlAgilityPack;
 
-namespace com.magusoft.drafthouse.Model
+namespace MaguSoft.ComeAndTicket.Core.Model
 {
     public enum TicketsStatus
     {

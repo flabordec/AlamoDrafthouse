@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>netcoreapp3.0</TargetFramework>
+        <UseWPF>true</UseWPF>
+        <RootNamespace>MaguSoft.ComeAndTicket.Ui</RootNamespace>
+        <ApplicationIcon>Icons\ComeAndTicket.ico</ApplicationIcon>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="MvvmLightLibsStd10" Version="5.4.1.1" />
+        <PackageReference Include="NLog" Version="4.6.7" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AlamoDrafthouseCore\AlamoDrafthouseCore.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Remove="Icons\ComeAndTicket.ico" />
+        <None Remove="Icons\reload.png" />
+        <None Remove="Icons\working.png" />
+        
+        <Resource Include="Icons\ComeAndTicket.ico">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Icons\reload.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Resource>
+        <Resource Include="Icons\working.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Resource>
+    </ItemGroup>
+
+</Project>

@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
 
-namespace com.magusoft.drafthouse.ExtensionMethods
+namespace MaguSoft.ComeAndTicket.Core.ExtensionMethods
 {
     static class HtmlNodeExtensionMethods
     {
