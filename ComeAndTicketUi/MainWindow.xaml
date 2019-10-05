@@ -14,7 +14,6 @@
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
 
-        <!--
         <Style x:Key="ErrorStyle"
                TargetType="FrameworkElement">
             <Style.Triggers>
@@ -24,10 +23,15 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        -->
 
         <Style x:Key="ReloadButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Content" Value="Reload" />
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="Load" />
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <HierarchicalDataTemplate DataType="{x:Type m:Market}" ItemsSource="{Binding Theaters}">

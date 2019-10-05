@@ -155,6 +155,8 @@ namespace MaguSoft.ComeAndTicket.Ui.ViewModel
             }
             catch (Exception ex)
             {
+                Status = $"Error: {ex.Message}";
+
                 logger.Error(ex, "Exception while initializing");
                 throw;
             }

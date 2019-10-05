@@ -17,7 +17,7 @@ using Newtonsoft.Json.Linq;
 
 namespace MaguSoft.ComeAndTicket.Core.Model
 {
-    public class Theater : ObservableObject
+    public class Theater : DataValidatingObservableObject
     {
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
@@ -25,6 +25,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         public string TheaterUrl { get; }
 
         private bool _moviesLoaded;
+        [IsTrue(ErrorMessage = "Movies could not be loaded")]
         public bool MoviesLoaded
         {
             get { return _moviesLoaded; }

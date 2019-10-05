@@ -6,6 +6,7 @@
         <UseWPF>true</UseWPF>
         <RootNamespace>MaguSoft.ComeAndTicket.Ui</RootNamespace>
         <ApplicationIcon>Icons\ComeAndTicket.ico</ApplicationIcon>
+        <StartupObject>ComeAndTicketUi.App</StartupObject>
     </PropertyGroup>
 
     <ItemGroup>
@@ -18,10 +19,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Remove="Icons\ComeAndTicket.ico" />
-        <None Remove="Icons\reload.png" />
-        <None Remove="Icons\working.png" />
-        
         <Resource Include="Icons\ComeAndTicket.ico">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Resource>
@@ -31,6 +28,10 @@
         <Resource Include="Icons\working.png">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Resource>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="View\" />
     </ItemGroup>
 
 </Project>

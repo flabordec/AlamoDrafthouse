@@ -1,18 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using GalaSoft.MvvmLight;
 using HtmlAgilityPack;
 using GalaSoft.MvvmLight.Command;
 using MaguSoft.ComeAndTicket.Core.Helpers;
 using MaguSoft.ComeAndTicket.Core.ExtensionMethods;
+using System.ComponentModel.DataAnnotations;
 
 namespace MaguSoft.ComeAndTicket.Core.Model
 {
-    public class Market : ObservableObject
+    public class Market : DataValidatingObservableObject
     {
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
@@ -29,11 +28,14 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             return markets;
         }
 
+        [Required(ErrorMessage = "You must specify a URL")]
         public string Url { get; }
+        [Required(ErrorMessage = "You must specify a Name")]
         public string Name { get; }
 
-        private bool _theatersLoaded;
-        public bool TheatersLoaded
+        private bool? _theatersLoaded;
+        [IsTrue(ErrorMessage = "Theaters could not be loaded")]
+        public bool? TheatersLoaded
         {
             get { return _theatersLoaded; }
             private set { Set(ref _theatersLoaded, value); }
