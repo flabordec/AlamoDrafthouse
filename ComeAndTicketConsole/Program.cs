@@ -40,10 +40,15 @@ namespace MaguSoft.ComeAndTicket.Console
             var config = new NLog.Config.LoggingConfiguration();
 
             // Targets where to log to: File and Console
-            var logFile = new NLog.Targets.FileTarget("logfile") { FileName = "output.log" };
+            var logFile = new NLog.Targets.FileTarget("logfile")
+            {
+                FileName = "output.log",
+                ArchiveEvery = NLog.Targets.FileArchivePeriod.Day,
+                MaxArchiveFiles = 10,
+            };
             var logConsole = new NLog.Targets.ConsoleTarget("logconsole");
 
-            // Rules for mapping loggers to targets            
+            // Rules for mapping loggers to targets
             config.AddRule(LogLevel.Info, LogLevel.Fatal, logConsole);
             config.AddRule(LogLevel.Debug, LogLevel.Fatal, logFile);
 
@@ -53,21 +58,31 @@ namespace MaguSoft.ComeAndTicket.Console
             var results = Parser.Default.ParseArguments<Options>(args);
             if (results.Tag == ParserResultType.Parsed)
             {
+                Options options = ((Parsed<Options>)results).Value;
                 try
                 {
-                    Options options = null;
-                    results.WithParsed(o => options = o);
-                    Debug.Assert(options != null);
                     return await RunAndReturnExitCodeAsync(options);
                 }
                 catch (Exception ex)
                 {
                     logger.Error(ex, "Exception while running");
+
+                    await PushbulletPushAsync(
+                        "v2/pushes",
+                        options.PushbulletApiToken,
+                        new Dictionary<string, string>()
+                        {
+                            ["type"] = "note",
+                            ["title"] = "Error while getting tickets",
+                            ["device_iden"] = options.DeviceIdentifier,
+                            ["body"] = ex.Message,
+                        });
                     return -1;
                 }
             }
             else
             {
+                logger.Error("Invalid command line arguments");
                 return -2;
             }
         }
@@ -126,24 +141,22 @@ namespace MaguSoft.ComeAndTicket.Console
                 from m in t.Movies
                 from s in m.ShowTimes
                 where MovieTitleContains(m, opts.Movie)
-                where !MovieAlreadySent(configuration, t, m, s)
-                group s by new { Theater = t, Movie = m } into showtimes
-                select showtimes;
+                where !MovieAlreadySent(configuration, m, s)
+                group s by new {Movie = m};
 
             if (!moviesOnSale.Any())
                 return;
-
-            var moviesSent = new List<Tuple<Theater, Movie, ShowTime>>();
+            
+            var moviesSent = new List<(Movie, ShowTime)>();
             var messageBuilder = new StringBuilder();
             foreach (var movieOnSale in moviesOnSale)
             {
-                Theater t = movieOnSale.Key.Theater;
                 Movie m = movieOnSale.Key.Movie;
-                messageBuilder.AppendLine($"{t.Name} has {m.Title}:");
+                messageBuilder.AppendLine(m.Title);
                 foreach (ShowTime s in movieOnSale)
                 {
                     if (s.MyTicketsStatus == TicketsStatus.OnSale)
-                        messageBuilder.AppendLine($" - {s.MyShowTime} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl})");
+                        messageBuilder.AppendLine($" - {s.MyShowTime} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl} )");
                     else if (s.MyTicketsStatus == TicketsStatus.SoldOut)
                         messageBuilder.AppendLine($" - {s.MyShowTime} (Sold out)");
                     else if (s.MyTicketsStatus == TicketsStatus.Past)
@@ -151,14 +164,12 @@ namespace MaguSoft.ComeAndTicket.Console
                     else
                         messageBuilder.AppendLine($" - {s.MyShowTime} (Unknown ticket status)");
 
-                    moviesSent.Add(new Tuple<Theater, Movie, ShowTime>(t, m, s));
+                    moviesSent.Add((m, s));
                 }
+
+                messageBuilder.AppendLine();
             }
             logger.Info(messageBuilder.ToString());
-
-            var devices = await PushbulletGetAsync(
-                "v2/devices",
-                opts.PushbulletApiToken);
 
             await PushbulletPushAsync(
                 "v2/pushes",
@@ -174,10 +185,10 @@ namespace MaguSoft.ComeAndTicket.Console
             SaveConfiguration(configuration, moviesSent);
         }
 
-        private static void SaveConfiguration(XDocument configuration, List<Tuple<Theater, Movie, ShowTime>> moviesSent)
+        private static void SaveConfiguration(XDocument configuration, List<(Movie Movie, ShowTime ShowTime)> moviesSent)
         {
             foreach (var tuple in moviesSent)
-                MarkMovieSent(configuration, tuple.Item1, tuple.Item2, tuple.Item3);
+                MarkMovieSent(configuration, tuple.Movie, tuple.ShowTime);
             configuration.Save(CONFIG_FILE_NAME);
         }
 
@@ -199,11 +210,10 @@ namespace MaguSoft.ComeAndTicket.Console
             return movie.Title.Contains(wantedTitle, StringComparison.CurrentCultureIgnoreCase);
         }
 
-        private static bool MovieAlreadySent(XDocument configuration, Theater t, Movie m, ShowTime s)
+        private static bool MovieAlreadySent(XDocument configuration, Movie m, ShowTime s)
         {
             return (
                 from movie in configuration.Descendants("Movie")
-                where movie.Attribute("Theater").Value == t.Name
                 where movie.Attribute("Title").Value == m.Title
                 where movie.Attribute("TicketsURL").Value == s.TicketsUrl
                 where movie.Attribute("TicketState").Value == s.MyTicketsStatus.ToString()
@@ -211,11 +221,10 @@ namespace MaguSoft.ComeAndTicket.Console
                 ).Any();
         }
 
-        private static void MarkMovieSent(XDocument configuration, Theater t, Movie m, ShowTime s)
+        private static void MarkMovieSent(XDocument configuration, Movie m, ShowTime s)
         {
             configuration.Root.Add(
                 new XElement("Movie",
-                    new XAttribute("Theater", t.Name),
                     new XAttribute("Title", m.Title),
                     new XAttribute("TicketsURL", s.TicketsUrl),
                     new XAttribute("TicketState", s.MyTicketsStatus)
