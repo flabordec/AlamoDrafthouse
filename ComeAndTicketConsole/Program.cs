@@ -142,7 +142,7 @@ namespace MaguSoft.ComeAndTicket.Console
                 from s in m.ShowTimes
                 where MovieTitleContains(m, opts.Movie)
                 where !MovieAlreadySent(configuration, m, s)
-                group s by new {Movie = m};
+                group s by m;
 
             if (!moviesOnSale.Any())
                 return;
@@ -151,7 +151,7 @@ namespace MaguSoft.ComeAndTicket.Console
             var messageBuilder = new StringBuilder();
             foreach (var movieOnSale in moviesOnSale)
             {
-                Movie m = movieOnSale.Key.Movie;
+                Movie m = movieOnSale.Key;
                 messageBuilder.AppendLine(m.Title);
                 foreach (ShowTime s in movieOnSale)
                 {
