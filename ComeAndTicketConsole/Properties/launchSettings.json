@@ -2,7 +2,7 @@
   "profiles": {
     "ComeAndTicketConsole": {
       "commandName": "Project",
-      "commandLineArgs": "--market=Austin --movie=Pancake --pushbullet-api-token=o.ZLqyDvXi0qXlYzdsNT9osfJ35wphrVoR --device-id=ujDtbri4btcsjDylMti8m4"
+      "commandLineArgs": "--market=Austin --movie=Pancake \"Star Wars\" --pushbullet-api-token=o.ZLqyDvXi0qXlYzdsNT9osfJ35wphrVoR --device-id=ujDtbri4btcsjDylMti8m4"
     }
   }
 }

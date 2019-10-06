@@ -23,7 +23,7 @@ namespace MaguSoft.ComeAndTicket.Console
         [Option('m', "market", Required = true, HelpText = "Set the market for the movies (for example: 'Austin').")]
         public string Market { get; set; }
         [Option('v', "movie", Required = true, HelpText = "The movie to search for.")]
-        public string Movie { get; set; }
+        public IEnumerable<string> Movies { get; set; }
         [Option('p', "pushbullet-api-token", Required = true, HelpText = "The PushBullet token to use to push messages")]
         public string PushbulletApiToken { get; set; }
         [Option('d', "device-id", Required = true, HelpText = "The PushBullet device identifier to push to")]
@@ -136,19 +136,25 @@ namespace MaguSoft.ComeAndTicket.Console
         {
             XDocument configuration = GetConfigurationFile();
 
-            var moviesOnSale =
+            var moviesOnSale = (
                 from t in market.Theaters
                 from m in t.Movies
                 from s in m.ShowTimes
-                where MovieTitleContains(m, opts.Movie)
+                where MovieTitleContains(m, opts.Movies)
                 where !MovieAlreadySent(configuration, m, s)
-                group s by m;
+                where s.MyTicketsStatus != TicketsStatus.Past
+                select (s, m)
+                ).GroupBy(
+                    ((ShowTime ShowTime, Movie Movie) p) => p.Movie,
+                    ((ShowTime ShowTime, Movie Movie) p) => p.ShowTime,
+                    MovieComparer.TitleCurrentCultureIgnoreCase);
 
             if (!moviesOnSale.Any())
                 return;
             
             var moviesSent = new List<(Movie, ShowTime)>();
             var messageBuilder = new StringBuilder();
+            messageBuilder.AppendLine(Environment.MachineName);
             foreach (var movieOnSale in moviesOnSale)
             {
                 Movie m = movieOnSale.Key;
@@ -159,8 +165,6 @@ namespace MaguSoft.ComeAndTicket.Console
                         messageBuilder.AppendLine($" - {s.MyShowTime} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl} )");
                     else if (s.MyTicketsStatus == TicketsStatus.SoldOut)
                         messageBuilder.AppendLine($" - {s.MyShowTime} (Sold out)");
-                    else if (s.MyTicketsStatus == TicketsStatus.Past)
-                        continue;
                     else
                         messageBuilder.AppendLine($" - {s.MyShowTime} (Unknown ticket status)");
 
@@ -205,9 +209,9 @@ namespace MaguSoft.ComeAndTicket.Console
             }
         }
 
-        private static bool MovieTitleContains(Movie movie, string wantedTitle)
+        private static bool MovieTitleContains(Movie movie, IEnumerable<string> wantedTitles)
         {
-            return movie.Title.Contains(wantedTitle, StringComparison.CurrentCultureIgnoreCase);
+            return wantedTitles.Any(wantedTitle => movie.Title.Contains(wantedTitle, StringComparison.CurrentCultureIgnoreCase));
         }
 
         private static bool MovieAlreadySent(XDocument configuration, Movie m, ShowTime s)
