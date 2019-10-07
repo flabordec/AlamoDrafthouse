@@ -14,4 +14,9 @@
     <ProjectReference Include="..\AlamoDrafthouseCore\AlamoDrafthouseCore.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <RuntimeIdentifier>linux-arm</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+  </PropertyGroup>
+
 </Project>
