@@ -34,4 +34,9 @@
       <Folder Include="View\" />
     </ItemGroup>
 
+    <PropertyGroup>
+        <RuntimeIdentifier>linux-arm</RuntimeIdentifier>
+        <PublishSingleFile>true</PublishSingleFile>
+    </PropertyGroup>
+
 </Project>

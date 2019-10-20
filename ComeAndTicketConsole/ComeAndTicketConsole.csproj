@@ -16,4 +16,9 @@
     <ProjectReference Include="..\PushbulletDotNet\PushbulletDotNet.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <RuntimeIdentifier>linux-arm</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+  </PropertyGroup>
+
 </Project>
