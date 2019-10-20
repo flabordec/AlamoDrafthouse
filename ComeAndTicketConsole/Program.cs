@@ -15,6 +15,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using MaguSoft.ComeAndTicket.Core.Model;
 using MaguSoft.ComeAndTicket.Core.Helpers;
+using PushbulletDotNet;
 
 namespace MaguSoft.ComeAndTicket.Console
 {
@@ -26,14 +27,19 @@ namespace MaguSoft.ComeAndTicket.Console
         public IEnumerable<string> Movies { get; set; }
         [Option('p', "pushbullet-api-token", Required = true, HelpText = "The PushBullet token to use to push messages")]
         public string PushbulletApiToken { get; set; }
-        [Option('d', "device-id", Required = true, HelpText = "The PushBullet device identifier to push to")]
-        public string DeviceIdentifier { get; set; }
+        [Option('i', "device-ids", Required = false, HelpText = "The PushBullet device identifier to push to")]
+        public IEnumerable<string> DeviceIdentifiers { get; set; }
+        [Option('n', "device-nicknames", Required = false, HelpText = "The PushBullet device nicknames to push to")]
+        public IEnumerable<string> DeviceNicknames { get; set; }
     }
 
     class Program
     {
         private const string CONFIG_FILE_NAME = "ComeAndTicket.config";
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+        private static Pushbullet _pushbulletApi;
+        private static HashSet<IDevice> _devices;
 
         static async Task<int> Main(string[] args)
         {
@@ -58,7 +64,13 @@ namespace MaguSoft.ComeAndTicket.Console
             var results = Parser.Default.ParseArguments<Options>(args);
             if (results.Tag == ParserResultType.Parsed)
             {
-                Options options = ((Parsed<Options>)results).Value;
+                var options = ((Parsed<Options>)results).Value;
+                _pushbulletApi = new Pushbullet(options.PushbulletApiToken);
+                var devicesById = options.DeviceIdentifiers.Select(async id => await _pushbulletApi.GetDeviceById(id));
+                var devicesByNickname = options.DeviceNicknames.Select(async nickname => await _pushbulletApi.GetDeviceByNickname(nickname));
+                var devices = await Task.WhenAll(devicesById.Concat(devicesByNickname));
+                _devices = new HashSet<IDevice>(devices);
+                
                 try
                 {
                     return await RunAndReturnExitCodeAsync(options);
@@ -67,16 +79,10 @@ namespace MaguSoft.ComeAndTicket.Console
                 {
                     logger.Error(ex, "Exception while running");
 
-                    await PushbulletPushAsync(
-                        "v2/pushes",
-                        options.PushbulletApiToken,
-                        new Dictionary<string, string>()
-                        {
-                            ["type"] = "note",
-                            ["title"] = "Error while getting tickets",
-                            ["device_iden"] = options.DeviceIdentifier,
-                            ["body"] = ex.Message,
-                        });
+                    await _pushbulletApi.PushNoteAsync(
+                        "Error while getting tickets",
+                        ex.Message,
+                        _devices);
                     return -1;
                 }
             }
@@ -151,7 +157,7 @@ namespace MaguSoft.ComeAndTicket.Console
 
             if (!moviesOnSale.Any())
                 return;
-            
+
             var moviesSent = new List<(Movie, ShowTime)>();
             var messageBuilder = new StringBuilder();
             messageBuilder.AppendLine(Environment.MachineName);
@@ -175,16 +181,10 @@ namespace MaguSoft.ComeAndTicket.Console
             }
             logger.Info(messageBuilder.ToString());
 
-            await PushbulletPushAsync(
-                "v2/pushes",
-                opts.PushbulletApiToken,
-                new Dictionary<string, string>()
-                {
-                    ["type"] = "note",
-                    ["title"] = "New tickets available",
-                    ["device_iden"] = opts.DeviceIdentifier,
-                    ["body"] = messageBuilder.ToString()
-                });
+            await _pushbulletApi.PushNoteAsync(
+                "New tickets available",
+                messageBuilder.ToString(),
+                _devices);
 
             SaveConfiguration(configuration, moviesSent);
         }
@@ -235,52 +235,5 @@ namespace MaguSoft.ComeAndTicket.Console
                     )
                 );
         }
-
-        public static async Task<JObject> PushbulletGetAsync(
-            string method,
-            string authenticationToken)
-        {
-            var client = new HttpClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authenticationToken);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            Uri baseUri = new Uri("https://api.pushbullet.com");
-            Uri methodUri = new Uri(baseUri, method);
-            var response = await client.GetAsync(methodUri);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.Error("Could not GET from '{0}', response: {1}", methodUri, response.StatusCode);
-                throw new Exception("Could not push");
-            }
-
-            var responseString = await response.Content.ReadAsStringAsync();
-            var responseObject = JsonConvert.DeserializeObject<JObject>(responseString);
-            return responseObject;
-        }
-
-        public static async Task<JObject> PushbulletPushAsync(
-            string method,
-            string authenticationToken,
-            Dictionary<string, string> parameters)
-        {
-            var client = new HttpClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authenticationToken);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            string parametersString = JsonConvert.SerializeObject(parameters);
-            Uri baseUri = new Uri("https://api.pushbullet.com");
-            Uri methodUri = new Uri(baseUri, method);
-            var response = await client.PostAsync(methodUri, new StringContent(parametersString, Encoding.UTF8, "application/json"));
-
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.Error("Could not PUSH to '{0}' content '{1}', response: {2}", methodUri, parametersString, response.StatusCode);
-                throw new Exception("Could not push");
-            }
-
-            var responseString = await response.Content.ReadAsStringAsync();
-            var responseDict = JsonConvert.DeserializeObject<JObject>(responseString);
-            return responseDict;
-        }
-
     }
 }
