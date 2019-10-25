@@ -5,11 +5,13 @@ using GalaSoft.MvvmLight;
 using System.ComponentModel;
 using System.Reflection;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MaguSoft.ComeAndTicket.Core.Model
 {
     public class DataValidatingObservableObject : ObservableObject, IDataErrorInfo
     {
+        [NotMapped]
         public string Error => throw new NotSupportedException("IDataErrorInfo.Error is not supported, use IDataErrorInfo.this[propertyName] instead.");
 
         public string this[string propertyName]

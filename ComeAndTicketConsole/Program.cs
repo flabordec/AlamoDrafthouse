@@ -16,6 +16,7 @@ using Newtonsoft.Json.Linq;
 using MaguSoft.ComeAndTicket.Core.Model;
 using MaguSoft.ComeAndTicket.Core.Helpers;
 using PushbulletDotNet;
+using Microsoft.EntityFrameworkCore;
 
 namespace MaguSoft.ComeAndTicket.Console
 {
@@ -70,7 +71,7 @@ namespace MaguSoft.ComeAndTicket.Console
                 var devicesByNickname = options.DeviceNicknames.Select(async nickname => await _pushbulletApi.GetDeviceByNickname(nickname));
                 var devices = await Task.WhenAll(devicesById.Concat(devicesByNickname));
                 _devices = new HashSet<IDevice>(devices);
-                
+
                 try
                 {
                     return await RunAndReturnExitCodeAsync(options);
@@ -93,66 +94,75 @@ namespace MaguSoft.ComeAndTicket.Console
             }
         }
 
-        private static async Task<IEnumerable<Market>> OnReloadMarketsAsync()
-        {
-            HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync("https://drafthouse.com/markets");
-
-            var markets =
-                from node in marketsDocument.DocumentNode.Descendants("a")
-                where node.Attributes["id"]?.Value == "markets-page"
-                let url = node.Attributes["href"].Value
-                select new Market(url, node.InnerText);
-
-            return markets;
-        }
-
         private static async Task<int> RunAndReturnExitCodeAsync(Options opts)
         {
             logger.Info("Reading markets");
-            var markets = await OnReloadMarketsAsync();
-
-            var market = (
-                from m in markets
-                where m.Name.Equals(opts.Market, StringComparison.CurrentCultureIgnoreCase)
-                select m
-                ).SingleOrDefault();
-
-            if (market != null)
+            using (var db = new ComeAndTicketContext())
             {
+                //await db.Database.EnsureCreatedAsync();
 
-                await market.OnLoadTheatersAsync();
+                await ComeAndTicketContext.UpdateDatabaseFromWeb(db);
+                await db.SaveChangesAsync();
 
-                await Task.WhenAll(
-                    from t in market.Theaters
-                    select t.OnLoadMoviesAsync()
-                    );
+                //await
+                //    db.ShowTimes
+                //        .Include(s => s.Movie)
+                //        .Include(s => s.Theater)
+                //            .ThenInclude(t => t.Market)
+                //    .LoadAsync();
+                IEnumerable<ShowTime> showTimes = await FindMovies(opts, db);
 
-                await PushMoviesAsync(market, opts);
-
-                return 0;
-            }
-            else
-            {
-                logger.Warn($"Market not found {market}");
-                return -3;
+                if (showTimes.Any())
+                {
+                    await PushMoviesAsync(showTimes, opts);
+                    return 0;
+                }
+                else
+                {
+                    logger.Warn($"No show times for market {opts.Market}");
+                    return -3;
+                }
             }
         }
 
-        private static async Task PushMoviesAsync(Market market, Options opts)
+        private static async Task<IEnumerable<ShowTime>> FindMovies(Options opts, ComeAndTicketContext db)
+        {
+            // The database does not support doing a case-insensitive IN operation (to make the 
+            // showtime.Movie.Title IN opts.Movies)
+            // So we are stuck doing as much as we can in the database, and then converting to 
+            // a list and filtering further...
+            var partialShowTimes =
+                db.ShowTimes
+                .Where(s => EF.Functions.ILike(s.Theater.Market.Name, $"%{opts.Market}%"))
+                .Where(s => s.SeatsLeft > 0)
+                .Where(s => s.TicketsStatus == TicketsStatus.OnSale)
+                .AsAsyncEnumerable();
+            var partialShowTimesEnumeration = partialShowTimes.GetAsyncEnumerator();
+            var showTimes = new List<ShowTime>();
+            while (await partialShowTimesEnumeration.MoveNextAsync())
+            {
+                var partialShowTime = partialShowTimesEnumeration.Current;
+                if (opts.Movies.Any(m => partialShowTime.Movie.Title.Contains(m, StringComparison.CurrentCultureIgnoreCase)))
+                {
+                    showTimes.Add(partialShowTime);
+                }
+            }
+
+            return showTimes;
+        }
+
+        private static async Task PushMoviesAsync(IEnumerable<ShowTime> showTimes, Options opts)
         {
             XDocument configuration = GetConfigurationFile();
 
             var moviesOnSale = (
-                from t in market.Theaters
-                from m in t.Movies
-                from s in m.ShowTimes
-                where MovieTitleContains(m, opts.Movies)
-                where !MovieAlreadySent(configuration, m, s)
-                where s.MyTicketsStatus != TicketsStatus.Past
-                select (s, m)
+                from s in showTimes
+                where MovieTitleContains(s.Movie, opts.Movies)
+                where !MovieAlreadySent(configuration, s.Movie, s)
+                where s.TicketsStatus != TicketsStatus.Past
+                select s
                 ).GroupBy(
-                    ((ShowTime ShowTime, Movie Movie) p) => p.Movie,
-                    ((ShowTime ShowTime, Movie Movie) p) => p.ShowTime,
+                    s => s.Movie,
                     MovieComparer.TitleCurrentCultureIgnoreCase);
 
             if (!moviesOnSale.Any())
@@ -167,12 +177,12 @@ namespace MaguSoft.ComeAndTicket.Console
                 messageBuilder.AppendLine(m.Title);
                 foreach (ShowTime s in movieOnSale)
                 {
-                    if (s.MyTicketsStatus == TicketsStatus.OnSale)
-                        messageBuilder.AppendLine($" - {s.MyShowTime} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl} )");
-                    else if (s.MyTicketsStatus == TicketsStatus.SoldOut)
-                        messageBuilder.AppendLine($" - {s.MyShowTime} (Sold out)");
+                    if (s.TicketsStatus == TicketsStatus.OnSale)
+                        messageBuilder.AppendLine($" - {s.Date} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl} )");
+                    else if (s.TicketsStatus == TicketsStatus.SoldOut)
+                        messageBuilder.AppendLine($" - {s.Date} (Sold out)");
                     else
-                        messageBuilder.AppendLine($" - {s.MyShowTime} (Unknown ticket status)");
+                        messageBuilder.AppendLine($" - {s.Date} (Unknown ticket status)");
 
                     moviesSent.Add((m, s));
                 }
@@ -220,7 +230,7 @@ namespace MaguSoft.ComeAndTicket.Console
                 from movie in configuration.Descendants("Movie")
                 where movie.Attribute("Title").Value == m.Title
                 where movie.Attribute("TicketsURL").Value == s.TicketsUrl
-                where movie.Attribute("TicketState").Value == s.MyTicketsStatus.ToString()
+                where movie.Attribute("TicketState").Value == s.TicketsStatus.ToString()
                 select movie
                 ).Any();
         }
@@ -231,7 +241,7 @@ namespace MaguSoft.ComeAndTicket.Console
                 new XElement("Movie",
                     new XAttribute("Title", m.Title),
                     new XAttribute("TicketsURL", s.TicketsUrl),
-                    new XAttribute("TicketState", s.MyTicketsStatus)
+                    new XAttribute("TicketState", s.TicketsStatus)
                     )
                 );
         }

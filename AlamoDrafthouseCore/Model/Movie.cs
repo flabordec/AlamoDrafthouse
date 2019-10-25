@@ -3,6 +3,8 @@ using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
@@ -43,23 +45,28 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         }
     }
 
-    public class Movie : ObservableObject
+    public class Movie
     {
-        public string Title { get; }
+        [Required(ErrorMessage = "You must specify a title"), Key, DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public string Title { get; set; }
 
-        public Theater Theater { get; }
+        public HashSet<ShowTime> ShowTimes { get; set; }
 
-        private readonly List<ShowTime> mShowTimes;
-        public IEnumerable<ShowTime> ShowTimes
+        public Movie()
         {
-            get { return mShowTimes; }
+
         }
 
-        public Movie(Theater theater, string title, IEnumerable<ShowTime> showTimes)
+        public Movie(string title)
         {
-            Theater = theater;
             Title = title;
-            mShowTimes = new List<ShowTime>(showTimes);
+            ShowTimes = new HashSet<ShowTime>();
         }
+
+        //public bool Equals([AllowNull] Movie other) => MovieComparer.TitleCurrentCultureIgnoreCase.Equals(this, other);
+
+        //public override bool Equals(object obj) => Equals(obj as Movie);
+
+        //public override int GetHashCode() => MovieComparer.TitleCurrentCultureIgnoreCase.GetHashCode(this);
     }
 }

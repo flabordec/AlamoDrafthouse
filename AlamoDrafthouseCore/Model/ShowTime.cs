@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,29 +22,74 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         Past,
     }
 
-    public class ShowTime : ObservableObject
+    public class ShowTimeComparer
+    {
+        public static IEqualityComparer<ShowTime> Url => new ShowTimeUrlComparer();
+    }
+
+    class ShowTimeUrlComparer : IEqualityComparer<ShowTime>
+    {
+        private readonly StringComparer _comparer = StringComparer.OrdinalIgnoreCase;
+
+        public ShowTimeUrlComparer()
+        {
+        }
+
+        public bool Equals([AllowNull] ShowTime x, [AllowNull] ShowTime y)
+        {
+            if (ReferenceEquals(null, x) && ReferenceEquals(null, y))
+                return true;
+            if (ReferenceEquals(null, x))
+                return false;
+            if (ReferenceEquals(null, y))
+                return false;
+            if (ReferenceEquals(x, y))
+                return true;
+            return _comparer.Equals(x.TicketsUrl, y.TicketsUrl);
+        }
+
+        public int GetHashCode([DisallowNull] ShowTime obj)
+        {
+            return _comparer.GetHashCode(obj.TicketsUrl);
+        }
+    }
+
+    public class ShowTime
     {
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
-        public DateTime? MyShowTime { get; }
-        public RelayCommand BuyTicketCommand { get; }
+        [Required(ErrorMessage = "You must specify a URL"), Key, DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public string TicketsUrl { get; set; }
 
-        public TicketsStatus MyTicketsStatus { get; }
-        public int? SeatsLeft { get; }
+        public DateTime? Date { get; set; }
 
-        public string TicketsUrl { get; }
+        public TicketsStatus TicketsStatus { get; set; }
 
-        public ShowTime(DateTime? showTime, string url, string ticketsSaleStatusString, int? seatsLeft)
+        public int? SeatsLeft { get; set; }
+
+        public string TheaterUrl { get; set; }
+        [ForeignKey(nameof(TheaterUrl))]
+        public Theater Theater { get; set; }
+
+        public string MovieTitle { get; set; }
+        [ForeignKey(nameof(MovieTitle))]
+        public Movie Movie { get; set; }
+
+        public ShowTime(Theater theater, string ticketsUrl, DateTime? date, string ticketsSaleStatusString, int? seatsLeft)
         {
-            MyShowTime = showTime;
-            TicketsUrl = url;
-            MyTicketsStatus = StringToTicketsSaleStatus(ticketsSaleStatusString);
+            TheaterUrl = theater.Url;
+            Theater = theater;
+            Date = date;
+            TicketsUrl = ticketsUrl;
+            TicketsStatus = StringToTicketsSaleStatus(ticketsSaleStatusString);
             SeatsLeft = seatsLeft;
-
-            BuyTicketCommand = new RelayCommand(OnBuyTicket, CanBuyTicket);
         }
 
-        private TicketsStatus StringToTicketsSaleStatus(string ticketsSaleStatusString)
+        public ShowTime()
+        {
+        }
+
+        private static TicketsStatus StringToTicketsSaleStatus(string ticketsSaleStatusString)
         {
             if (ticketsSaleStatusString == null)
             {
@@ -65,16 +113,10 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             }
         }
 
-        private bool CanBuyTicket()
-        {
-            return
-                TicketsUrl != null &&
-                MyTicketsStatus == TicketsStatus.OnSale;
-        }
+        //public bool Equals([AllowNull] ShowTime other) => ShowTimeComparer.Url.Equals(other);
 
-        private void OnBuyTicket()
-        {
-            Process.Start(TicketsUrl);
-        }
+        //public override bool Equals(object obj) => Equals(obj as ShowTime);
+
+        //public override int GetHashCode() => ShowTimeComparer.Url.GetHashCode(this);
     }
 }
