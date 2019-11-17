@@ -3,15 +3,17 @@ using System;
 using MaguSoft.ComeAndTicket.Core.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace MaguSoft.ComeAndTicket.Core.Migrations
 {
     [DbContext(typeof(ComeAndTicketContext))]
-    partial class ComeAndTicketContextModelSnapshot : ModelSnapshot
+    [Migration("20191117141608_AddConfigurationAndShowTimesPushedTo")]
+    partial class AddConfigurationAndShowTimesPushedTo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -88,21 +90,6 @@ namespace MaguSoft.ComeAndTicket.Core.Migrations
                     b.ToTable("ShowTimes");
                 });
 
-            modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.ShowTimeTarget", b =>
-                {
-                    b.Property<string>("ShowTimeTicketsUrl")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetId")
-                        .HasColumnType("text");
-
-                    b.HasKey("ShowTimeTicketsUrl", "TargetId");
-
-                    b.HasIndex("TargetId");
-
-                    b.ToTable("ShowTimeTarget");
-                });
-
             modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.Target", b =>
                 {
                     b.Property<string>("Id")
@@ -111,7 +98,12 @@ namespace MaguSoft.ComeAndTicket.Core.Migrations
                     b.Property<string>("Nickname")
                         .HasColumnType("text");
 
+                    b.Property<string>("ShowTimeTicketsUrl")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ShowTimeTicketsUrl");
 
                     b.ToTable("Targets");
                 });
@@ -146,19 +138,11 @@ namespace MaguSoft.ComeAndTicket.Core.Migrations
                         .HasForeignKey("TheaterUrl");
                 });
 
-            modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.ShowTimeTarget", b =>
+            modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.Target", b =>
                 {
-                    b.HasOne("MaguSoft.ComeAndTicket.Core.Model.ShowTime", "ShowTime")
+                    b.HasOne("MaguSoft.ComeAndTicket.Core.Model.ShowTime", null)
                         .WithMany("TargetsUpdated")
-                        .HasForeignKey("ShowTimeTicketsUrl")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MaguSoft.ComeAndTicket.Core.Model.Target", "Target")
-                        .WithMany("ShowTimes")
-                        .HasForeignKey("TargetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("ShowTimeTicketsUrl");
                 });
 
             modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.Theater", b =>

@@ -2,7 +2,7 @@
   "profiles": {
     "ComeAndTicketConsole": {
       "commandName": "Project",
-      "commandLineArgs": "--market=austin --movie=Pancake Maleficent --pushbullet-api-token=o.ZLqyDvXi0qXlYzdsNT9osfJ35wphrVoR --device-nicknames=\"Pixel 2 XL\" \"Home PC\" \"Work PC (CRONO)\""
+      "commandLineArgs": "--market=austin --movie=Pancake --device-nicknames=\"Pixel 2 XL\" \"Home PC\" \"Work PC (CRONO)\""
     }
   }
 }

@@ -3,6 +3,7 @@ using MaguSoft.ComeAndTicket.Core.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Newtonsoft.Json.Linq;
+using PushbulletDotNet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,17 +21,42 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         public DbSet<Theater> Theaters { get; set; }
         public DbSet<Movie> Movies { get; set; }
         public DbSet<ShowTime> ShowTimes { get; set; }
+        public DbSet<Configuration> Configuration { get; set; }
+        public DbSet<Target> Targets { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder
             .UseNpgsql("Host=raspberrypi;Database=come_and_ticket;Username=come_and_ticket_user;Password=comeandticket")
             .EnableSensitiveDataLogging(true);
 
-        public static async Task UpdateDatabaseFromWeb(ComeAndTicketContext db)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Configuration>()
+                .HasIndex(b => b.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<ShowTimeTarget>()
+                .HasKey(st => new { st.ShowTimeTicketsUrl, st.TargetId });
+
+            modelBuilder.Entity<ShowTimeTarget>()
+                .HasOne(st => st.ShowTime)
+                .WithMany(s => s.TargetsUpdated)
+                .HasForeignKey(s => s.ShowTimeTicketsUrl);
+
+            modelBuilder.Entity<ShowTimeTarget>()
+                .HasOne(st => st.Target)
+                .WithMany(t => t.ShowTimes)
+                .HasForeignKey(t => t.TargetId);
+        }
+
+        public static async Task UpdateDatabaseFromWebAsync(ComeAndTicketContext db)
+        {
+            await db.Database.MigrateAsync();
+
             await db.Markets
                 .Include(m => m.Theaters)
                     .ThenInclude(t => t.ShowTimes)
+                        .ThenInclude(s => s.TargetsUpdated)
                 .LoadAsync();
             await db.Movies
                 .LoadAsync();
@@ -51,7 +77,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             await UpdateShowTimesAsync(db, showTimes);
         }
 
-        public static async Task<IEnumerable<Market>> ReadMarketsFromWebAsync()
+        private static async ValueTask<IEnumerable<Market>> ReadMarketsFromWebAsync()
         {
             logger.Info($"Reading markets from web");
 
@@ -65,24 +91,28 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             return marketsFromWeb;
         }
 
-        public static async Task UpdateMarketsAsync(ComeAndTicketContext db, IEnumerable<Market> marketsFromWeb)
+        private static async ValueTask UpdateMarketsAsync(ComeAndTicketContext db, IEnumerable<Market> marketsFromWeb)
         {
+            await db.Markets.LoadAsync();
+            var marketsByName = await db.Markets.ToDictionaryAsync(
+                m => m.Name,
+                m => m,
+                StringComparer.CurrentCultureIgnoreCase);
             foreach (var marketFromWeb in marketsFromWeb)
             {
-                var marketFromDb = db.Markets.SingleOrDefault(m => m.Name == marketFromWeb.Name);
-                if (marketFromDb == null)
+                if (marketsByName.TryGetValue(marketFromWeb.Name, out Market marketFromDb))
                 {
-                    db.Markets.Add(marketFromWeb);
+                    marketFromDb.Name = marketFromWeb.Name;
                 }
                 else
                 {
-                    marketFromDb.Name = marketFromWeb.Name;
+                    db.Markets.Add(marketFromWeb);
                 }
             }
             await db.SaveChangesAsync();
         }
 
-        public static async Task<IEnumerable<Theater>> ReadTheatersFromWebAsync(Market marketFromDb)
+        private static async Task<IEnumerable<Theater>> ReadTheatersFromWebAsync(Market marketFromDb)
         {
             logger.Info($"Reading theaters for {marketFromDb.Name} from web");
 
@@ -97,24 +127,30 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             return theatersFromWeb;
         }
 
-        public static async Task UpdateTheatersAsync(ComeAndTicketContext db, IEnumerable<Theater> theatersFromWeb)
+        private static async Task UpdateTheatersAsync(ComeAndTicketContext db, IEnumerable<Theater> theatersFromWeb)
         {
+            await db.Theaters.LoadAsync();
+            var theatersByUrl = await db.Theaters.ToDictionaryAsync(
+                t => t.Url,
+                t => t,
+                StringComparer.OrdinalIgnoreCase);
+
             foreach (var theaterFromWeb in theatersFromWeb)
             {
-                Theater theaterFromDb = db.Theaters.SingleOrDefault(t => t.Url == theaterFromWeb.Url);
-                if (theaterFromDb == null)
+                if (theatersByUrl.TryGetValue(theaterFromWeb.Url, out Theater theaterFromDb))
                 {
-                    db.Theaters.Add(theaterFromWeb);
+                    theaterFromDb.Name = theaterFromWeb.Name;
                 }
                 else
                 {
-                    theaterFromDb.Name = theaterFromWeb.Name;
+                    db.Theaters.Add(theaterFromWeb);
+                    
                 }
             }
             await db.SaveChangesAsync();
         }
 
-        public static async Task<IEnumerable<IGrouping<string, ShowTime>>> ReadShowTimesFromWebAsync(Theater theaterFromDb)
+        private static async Task<IEnumerable<IGrouping<string, ShowTime>>> ReadShowTimesFromWebAsync(Theater theaterFromDb)
         {
             logger.Info($"Loading movies for {theaterFromDb.Name}");
 
@@ -177,42 +213,73 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             return Enumerable.Empty<IGrouping<string, ShowTime>>();
         }
 
-        public static async Task UpdateShowTimesAsync(ComeAndTicketContext db, IEnumerable<IGrouping<string, ShowTime>> showTimesByMovie)
+        private static async Task UpdateShowTimesAsync(ComeAndTicketContext db, IEnumerable<IGrouping<string, ShowTime>> showTimesByMovie)
         {
+            await db.Movies.LoadAsync();
+            var moviesByTitle = await db.Movies.ToDictionaryAsync(
+                m => m.Title,
+                m => m,
+                StringComparer.CurrentCultureIgnoreCase);
             foreach (var showTimesFromWeb in showTimesByMovie)
             {
                 string movieTitle = showTimesFromWeb.Key;
-                Movie movieFromDb = db.Movies.SingleOrDefault(m => m.Title == movieTitle);
-                if (movieFromDb == null)
+                if (!moviesByTitle.ContainsKey(movieTitle))
                 {
                     logger.Info($"Adding movie: {movieTitle}");
-                    db.Movies.Add(new Movie(movieTitle));
-
-                    await db.SaveChangesAsync();
+                    var movie = new Movie(movieTitle);
+                    db.Movies.Add(movie);
+                    moviesByTitle.Add(movieTitle, movie);
                 }
             }
-            
 
+            await db.ShowTimes.LoadAsync();
+            var showTimesByTicketsUrl = await db.ShowTimes.ToDictionaryAsync(
+                s => s.TicketsUrl,
+                s => s,
+                StringComparer.OrdinalIgnoreCase);
             foreach (IGrouping<string, ShowTime> showTimesFromWeb in showTimesByMovie)
             {
                 string movieTitle = showTimesFromWeb.Key;
                 IEnumerable<ShowTime> deDupedShowTimesFromWeb = showTimesFromWeb.GroupBy(s => s.TicketsUrl).Select(g => g.First());
-                var movieFromDb = db.Movies.Single(m => m.Title == movieTitle);
+                
+                var movieFromDb = moviesByTitle[movieTitle];
                 foreach (ShowTime showTimeFromWeb in deDupedShowTimesFromWeb)
                 {
                     showTimeFromWeb.Movie = movieFromDb;
 
-                    var showTimeInDb = db.ShowTimes.SingleOrDefault(s => showTimeFromWeb.TicketsUrl == s.TicketsUrl);
-                    if (showTimeInDb == null)
-                    {
-                        db.ShowTimes.Add(showTimeFromWeb);
-                    }
-                    else
+                    if (showTimesByTicketsUrl.TryGetValue(showTimeFromWeb.TicketsUrl, out ShowTime showTimeInDb))
                     {
                         showTimeInDb.SeatsLeft = showTimeFromWeb.SeatsLeft;
                         showTimeInDb.Date = showTimeFromWeb.Date;
                         showTimeInDb.TicketsStatus = showTimeFromWeb.TicketsStatus;
                     }
+                    else
+                    {
+                        db.ShowTimes.Add(showTimeFromWeb);
+                    }
+                }
+            }
+        }
+
+        public static async Task UpdateDevicesAsync(ComeAndTicketContext db, IEnumerable<IDevice> devicesFromPushbulletApi)
+        {
+            await db.Targets.LoadAsync();
+            var targetsById = await db.Targets.ToDictionaryAsync(
+                d => d.Id,
+                d => d,
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var deviceFromPushbulletApi in devicesFromPushbulletApi)
+            {
+                if (targetsById.TryGetValue(deviceFromPushbulletApi.Id, out Target targetFromDb))
+                {
+                    targetFromDb.Nickname = deviceFromPushbulletApi.Nickname;
+                }
+                else
+                {
+                    var newTarget = new Target(deviceFromPushbulletApi.Id, deviceFromPushbulletApi.Nickname);
+                    db.Targets.Add(newTarget);
+
                 }
             }
             await db.SaveChangesAsync();

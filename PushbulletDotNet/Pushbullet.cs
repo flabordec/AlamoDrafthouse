@@ -44,6 +44,7 @@ namespace PushbulletDotNet
     {
         IDevice GetDeviceById(string id);
         IDevice GetDeviceByNickname(string nickname);
+        IEnumerable<IDevice> GetAllDevices();
     }
 
     public class DevicesList : IDevicesList
@@ -60,6 +61,8 @@ namespace PushbulletDotNet
         public IDevice GetDeviceById(string id) => _devicesById[id];
 
         public IDevice GetDeviceByNickname(string nickname) => _devicesByNickname[nickname];
+
+        public IEnumerable<IDevice> GetAllDevices() => _devicesById.Values;
     }
 
     public class Pushbullet
@@ -82,7 +85,7 @@ namespace PushbulletDotNet
             if (_devices == null)
             {
                 var devices = new List<IDevice>();
-                await foreach (var device in GetDevicesAsync())
+                await foreach (var device in PrivateGetDevicesAsync())
                 {
                     devices.Add(device);
                 }
@@ -94,6 +97,17 @@ namespace PushbulletDotNet
                     }
                 }
             }
+        }
+        private async IAsyncEnumerable<IDevice> PrivateGetDevicesAsync()
+        {
+            JObject devicesJson = await PushbulletGetAsync("v2/devices");
+            foreach (var deviceJson in devicesJson["devices"].Children())
+            {
+                var device = Device.FromJToken(deviceJson);
+                if (device.Active)
+                    yield return device;
+            }
+            yield break;
         }
 
         public async ValueTask<IDevice> GetDeviceById(string id)
@@ -108,16 +122,10 @@ namespace PushbulletDotNet
             return _devices.GetDeviceByNickname(nickname);
         }
 
-        public async IAsyncEnumerable<IDevice> GetDevicesAsync()
+        public async ValueTask<IEnumerable<IDevice>> GetAllDevicesAsync()
         {
-            JObject devicesJson = await PushbulletGetAsync("v2/devices");
-            foreach (var deviceJson in devicesJson["devices"].Children())
-            {
-                var device = Device.FromJToken(deviceJson);
-                if (device.Active)
-                    yield return device;
-            }
-            yield break;
+            await InitializeDevicesAsync();
+            return _devices.GetAllDevices();
         }
 
         public async Task PushNoteAsync(string title, string noteBody, IEnumerable<IDevice> devices)
@@ -130,13 +138,18 @@ namespace PushbulletDotNet
 
         public async Task PushNoteAsync(string title, string noteBody, IDevice device)
         {
+            await PushNoteAsync(title, noteBody, device.Id);
+        }
+
+        public async Task PushNoteAsync(string title, string noteBody, string deviceId)
+        {
             await PushbulletPushAsync(
                 "v2/pushes",
                 new Dictionary<string, string>()
                 {
                     ["type"] = "note",
                     ["title"] = title,
-                    ["device_iden"] = device.Id,
+                    ["device_iden"] = deviceId,
                     ["body"] = noteBody,
                 });
         }

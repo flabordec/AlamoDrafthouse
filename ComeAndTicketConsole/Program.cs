@@ -26,8 +26,6 @@ namespace MaguSoft.ComeAndTicket.Console
         public string Market { get; set; }
         [Option('v', "movie", Required = true, HelpText = "The movie to search for.")]
         public IEnumerable<string> Movies { get; set; }
-        [Option('p', "pushbullet-api-token", Required = true, HelpText = "The PushBullet token to use to push messages")]
-        public string PushbulletApiToken { get; set; }
         [Option('i', "device-ids", Required = false, HelpText = "The PushBullet device identifier to push to")]
         public IEnumerable<string> DeviceIdentifiers { get; set; }
         [Option('n', "device-nicknames", Required = false, HelpText = "The PushBullet device nicknames to push to")]
@@ -37,10 +35,12 @@ namespace MaguSoft.ComeAndTicket.Console
     class Program
     {
         private const string CONFIG_FILE_NAME = "ComeAndTicket.config";
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
         private static Pushbullet _pushbulletApi;
-        private static HashSet<IDevice> _devices;
+        
+        private static Dictionary<string, string> _configuration;
+        
 
         static async Task<int> Main(string[] args)
         {
@@ -49,6 +49,7 @@ namespace MaguSoft.ComeAndTicket.Console
             // Targets where to log to: File and Console
             var logFile = new NLog.Targets.FileTarget("logfile")
             {
+                Layout = "${longdate}|${level:uppercase=true}|${logger}|${message}|${onexception:inner=${newline}${exception:format=toString}}",
                 FileName = "output.log",
                 ArchiveEvery = NLog.Targets.FileArchivePeriod.Day,
                 MaxArchiveFiles = 10,
@@ -65,63 +66,78 @@ namespace MaguSoft.ComeAndTicket.Console
             var results = Parser.Default.ParseArguments<Options>(args);
             if (results.Tag == ParserResultType.Parsed)
             {
-                var options = ((Parsed<Options>)results).Value;
-                _pushbulletApi = new Pushbullet(options.PushbulletApiToken);
-                var devicesById = options.DeviceIdentifiers.Select(async id => await _pushbulletApi.GetDeviceById(id));
-                var devicesByNickname = options.DeviceNicknames.Select(async nickname => await _pushbulletApi.GetDeviceByNickname(nickname));
-                var devices = await Task.WhenAll(devicesById.Concat(devicesByNickname));
-                _devices = new HashSet<IDevice>(devices);
-
-                try
+                using (var db = new ComeAndTicketContext())
                 {
-                    return await RunAndReturnExitCodeAsync(options);
-                }
-                catch (Exception ex)
-                {
-                    logger.Error(ex, "Exception while running");
+                    HashSet<IDevice> devicesSet = null;
+                    try
+                    {
+                        var options = ((Parsed<Options>)results).Value;
 
-                    await _pushbulletApi.PushNoteAsync(
-                        "Error while getting tickets",
-                        ex.Message,
-                        _devices);
-                    return -1;
+                        _logger.Info("Options read {Options}", options);
+
+                        _logger.Info("Reading configuration from DB");
+                        _configuration = await db.Configuration.ToDictionaryAsync(c => c.Name, c => c.Value);
+                        string pushbulletApiToken = _configuration["pushbullet-api-token"];
+
+                        _logger.Info("Getting devices from Pushbullet");
+                        _pushbulletApi = new Pushbullet(pushbulletApiToken);
+                        var devicesById = options.DeviceIdentifiers.Select(async id => await _pushbulletApi.GetDeviceById(id));
+                        var devicesByNickname = options.DeviceNicknames.Select(async nickname => await _pushbulletApi.GetDeviceByNickname(nickname));
+                        var devices = await Task.WhenAll(devicesById.Concat(devicesByNickname));
+                        devicesSet = new HashSet<IDevice>(devices);
+
+                        return await RunAndReturnExitCodeAsync(options, devicesSet, db);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Exception while running");
+                        if (devicesSet != null)
+                        {
+                            await _pushbulletApi.PushNoteAsync(
+                                "Error while getting tickets",
+                                ex.Message,
+                                devicesSet);
+                        }
+                        return -1;
+                    }
                 }
             }
             else
             {
-                logger.Error("Invalid command line arguments");
+                _logger.Error("Invalid command line arguments {Arguments}", args);
                 return -2;
             }
         }
 
-        private static async Task<int> RunAndReturnExitCodeAsync(Options opts)
+        private static async Task<int> RunAndReturnExitCodeAsync(Options opts, HashSet<IDevice> devices, ComeAndTicketContext db)
         {
-            logger.Info("Reading markets");
-            using (var db = new ComeAndTicketContext())
+            // Convert into a service
+            // https://devblogs.microsoft.com/dotnet/net-core-and-systemd/
+
+            _logger.Info("Updating Drafthouse data from web");
+            await ComeAndTicketContext.UpdateDatabaseFromWebAsync(db);
+            _logger.Info("Updating devices from Pushbullet");
+            await ComeAndTicketContext.UpdateDevicesAsync(db, devices);
+
+            //await
+            //    db.ShowTimes
+            //        .Include(s => s.Movie)
+            //        .Include(s => s.Theater)
+            //            .ThenInclude(t => t.Market)
+            //    .LoadAsync();
+            IEnumerable<ShowTime> showTimes = await FindMovies(opts, db);
+
+            if (showTimes.Any())
             {
-                //await db.Database.EnsureCreatedAsync();
-
-                await ComeAndTicketContext.UpdateDatabaseFromWeb(db);
-                await db.SaveChangesAsync();
-
-                //await
-                //    db.ShowTimes
-                //        .Include(s => s.Movie)
-                //        .Include(s => s.Theater)
-                //            .ThenInclude(t => t.Market)
-                //    .LoadAsync();
-                IEnumerable<ShowTime> showTimes = await FindMovies(opts, db);
-
-                if (showTimes.Any())
-                {
-                    await PushMoviesAsync(showTimes, opts);
-                    return 0;
-                }
-                else
-                {
-                    logger.Warn($"No show times for market {opts.Market}");
-                    return -3;
-                }
+                _logger.Info("Some movies found");
+                await PushMoviesAsync(showTimes, opts, devices, db);
+                _logger.Info("All new movies pushed");
+                return 0;
+            }
+            else
+            {
+                _logger.Warn("No show times for market {Market}", opts.Market);
+                return -3;
             }
         }
 
@@ -131,17 +147,16 @@ namespace MaguSoft.ComeAndTicket.Console
             // showtime.Movie.Title IN opts.Movies)
             // So we are stuck doing as much as we can in the database, and then converting to 
             // a list and filtering further...
-            var partialShowTimes =
+            var partialShowTimes = await
                 db.ShowTimes
                 .Where(s => EF.Functions.ILike(s.Theater.Market.Name, $"%{opts.Market}%"))
                 .Where(s => s.SeatsLeft > 0)
                 .Where(s => s.TicketsStatus == TicketsStatus.OnSale)
-                .AsAsyncEnumerable();
-            var partialShowTimesEnumeration = partialShowTimes.GetAsyncEnumerator();
+                .ToArrayAsync();
+            
             var showTimes = new List<ShowTime>();
-            while (await partialShowTimesEnumeration.MoveNextAsync())
+            foreach (var partialShowTime in partialShowTimes)
             {
-                var partialShowTime = partialShowTimesEnumeration.Current;
                 if (opts.Movies.Any(m => partialShowTime.Movie.Title.Contains(m, StringComparison.CurrentCultureIgnoreCase)))
                 {
                     showTimes.Add(partialShowTime);
@@ -151,72 +166,58 @@ namespace MaguSoft.ComeAndTicket.Console
             return showTimes;
         }
 
-        private static async Task PushMoviesAsync(IEnumerable<ShowTime> showTimes, Options opts)
+        private static async Task PushMoviesAsync(IEnumerable<ShowTime> showTimes, Options opts, IEnumerable<IDevice> devices, ComeAndTicketContext db)
         {
-            XDocument configuration = GetConfigurationFile();
-
-            var moviesOnSale = (
-                from s in showTimes
-                where MovieTitleContains(s.Movie, opts.Movies)
-                where !MovieAlreadySent(configuration, s.Movie, s)
-                where s.TicketsStatus != TicketsStatus.Past
-                select s
-                ).GroupBy(
-                    s => s.Movie,
-                    MovieComparer.TitleCurrentCultureIgnoreCase);
-
-            if (!moviesOnSale.Any())
-                return;
-
-            var moviesSent = new List<(Movie, ShowTime)>();
-            var messageBuilder = new StringBuilder();
-            messageBuilder.AppendLine(Environment.MachineName);
-            foreach (var movieOnSale in moviesOnSale)
+            var targetsById = await db.Targets.ToDictionaryAsync(t => t.Id);
+            foreach (var device in devices)
             {
-                Movie m = movieOnSale.Key;
-                messageBuilder.AppendLine(m.Title);
-                foreach (ShowTime s in movieOnSale)
+                var target = targetsById[device.Id];
+
+                IEnumerable<IGrouping<Movie, ShowTime>> moviesOnSale = (
+                    from s in showTimes
+                    where MovieTitleContains(s.Movie, opts.Movies)
+                    where !MovieAlreadySent(s, target)
+                    where s.TicketsStatus != TicketsStatus.Past
+                    select s
+                    ).GroupBy(
+                        s => s.Movie,
+                        MovieComparer.TitleCurrentCultureIgnoreCase);
+
+                if (!moviesOnSale.Any())
+                    continue;
+
+                var showTimesSent = new List<ShowTime>();
+                var messageBuilder = new StringBuilder();
+                messageBuilder.AppendLine(Environment.MachineName);
+                foreach (var movieOnSale in moviesOnSale)
                 {
-                    if (s.TicketsStatus == TicketsStatus.OnSale)
-                        messageBuilder.AppendLine($" - {s.Date} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl} )");
-                    else if (s.TicketsStatus == TicketsStatus.SoldOut)
-                        messageBuilder.AppendLine($" - {s.Date} (Sold out)");
-                    else
-                        messageBuilder.AppendLine($" - {s.Date} (Unknown ticket status)");
+                    Movie m = movieOnSale.Key;
+                    messageBuilder.AppendLine(m.Title);
+                    foreach (ShowTime s in movieOnSale)
+                    {
+                        if (s.TicketsStatus == TicketsStatus.OnSale)
+                            messageBuilder.AppendLine($" - {s.Date} (Left: {s.SeatsLeft} seats, Buy: {s.TicketsUrl} )");
+                        else if (s.TicketsStatus == TicketsStatus.SoldOut)
+                            messageBuilder.AppendLine($" - {s.Date} (Sold out)");
+                        else
+                            messageBuilder.AppendLine($" - {s.Date} (Unknown ticket status)");
 
-                    moviesSent.Add((m, s));
+                        showTimesSent.Add(s);
+                    }
+
+                    messageBuilder.AppendLine();
                 }
+                _logger.Info("Pushing new tickets to {DeviceName}\n{Message}", device.Nickname, messageBuilder.ToString());
 
-                messageBuilder.AppendLine();
+                await _pushbulletApi.PushNoteAsync(
+                    "New tickets available",
+                    messageBuilder.ToString(),
+                    device.Id);
+
+                MarkMovieSent(showTimesSent, target);
             }
-            logger.Info(messageBuilder.ToString());
 
-            await _pushbulletApi.PushNoteAsync(
-                "New tickets available",
-                messageBuilder.ToString(),
-                _devices);
-
-            SaveConfiguration(configuration, moviesSent);
-        }
-
-        private static void SaveConfiguration(XDocument configuration, List<(Movie Movie, ShowTime ShowTime)> moviesSent)
-        {
-            foreach (var tuple in moviesSent)
-                MarkMovieSent(configuration, tuple.Movie, tuple.ShowTime);
-            configuration.Save(CONFIG_FILE_NAME);
-        }
-
-        private static XDocument GetConfigurationFile()
-        {
-            if (File.Exists(CONFIG_FILE_NAME))
-            {
-                return XDocument.Load(CONFIG_FILE_NAME);
-            }
-            else
-            {
-                return new XDocument(
-                    new XElement("SentMovies"));
-            }
+            await db.SaveChangesAsync();
         }
 
         private static bool MovieTitleContains(Movie movie, IEnumerable<string> wantedTitles)
@@ -224,26 +225,17 @@ namespace MaguSoft.ComeAndTicket.Console
             return wantedTitles.Any(wantedTitle => movie.Title.Contains(wantedTitle, StringComparison.CurrentCultureIgnoreCase));
         }
 
-        private static bool MovieAlreadySent(XDocument configuration, Movie m, ShowTime s)
+        private static bool MovieAlreadySent(ShowTime showTime, Target target)
         {
-            return (
-                from movie in configuration.Descendants("Movie")
-                where movie.Attribute("Title").Value == m.Title
-                where movie.Attribute("TicketsURL").Value == s.TicketsUrl
-                where movie.Attribute("TicketState").Value == s.TicketsStatus.ToString()
-                select movie
-                ).Any();
+            return showTime.TargetsUpdated.Select(tu => tu.Target).Contains(target);
         }
 
-        private static void MarkMovieSent(XDocument configuration, Movie m, ShowTime s)
+        private static void MarkMovieSent(IEnumerable<ShowTime> showTimesSent, Target target)
         {
-            configuration.Root.Add(
-                new XElement("Movie",
-                    new XAttribute("Title", m.Title),
-                    new XAttribute("TicketsURL", s.TicketsUrl),
-                    new XAttribute("TicketState", s.TicketsStatus)
-                    )
-                );
+            foreach (ShowTime showTime in showTimesSent)
+            {
+                showTime.TargetsUpdated.Add(new ShowTimeTarget(showTime, target));
+            }
         }
     }
 }

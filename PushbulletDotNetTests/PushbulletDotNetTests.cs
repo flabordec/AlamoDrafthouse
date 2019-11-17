@@ -21,7 +21,8 @@ namespace PushbulletDotNetTests
         [Fact]
         public async Task Pushbullet_GetDevices_ReturnsDevices()
         {
-            await foreach (var device in _pushbulletApi.GetDevicesAsync())
+            var devices = await _pushbulletApi.GetAllDevicesAsync()
+            foreach (var device in devices)
             {
                 device.Id.Should().NotBeNullOrEmpty();
                 _output.WriteLine($"{device.Nickname} {device.Id}");

@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketUi", "ComeAndT
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PushbulletDotNet", "PushbulletDotNet\PushbulletDotNet.csproj", "{F326FB67-7EEB-474A-8EBD-4D6F0217663E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PushbulletDotNetTests", "PushbulletDotNetTests\PushbulletDotNetTests.csproj", "{09D32AAC-5474-4649-A4B5-FC6FA37B38E6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketWorker", "ComeAndTicketWorker\ComeAndTicketWorker.csproj", "{6B733D55-1F85-4931-8BC5-52647B5BB1B1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,10 +35,10 @@ Global
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{09D32AAC-5474-4649-A4B5-FC6FA37B38E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{09D32AAC-5474-4649-A4B5-FC6FA37B38E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{09D32AAC-5474-4649-A4B5-FC6FA37B38E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{09D32AAC-5474-4649-A4B5-FC6FA37B38E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

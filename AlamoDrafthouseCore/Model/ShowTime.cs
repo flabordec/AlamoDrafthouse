@@ -75,6 +75,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         [ForeignKey(nameof(MovieTitle))]
         public Movie Movie { get; set; }
 
+        public HashSet<ShowTimeTarget> TargetsUpdated { get; set; }
+
         public ShowTime(Theater theater, string ticketsUrl, DateTime? date, string ticketsSaleStatusString, int? seatsLeft)
         {
             TheaterUrl = theater.Url;
@@ -83,6 +85,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             TicketsUrl = ticketsUrl;
             TicketsStatus = StringToTicketsSaleStatus(ticketsSaleStatusString);
             SeatsLeft = seatsLeft;
+            TargetsUpdated = new HashSet<ShowTimeTarget>();
         }
 
         public ShowTime()
@@ -112,11 +115,5 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                     return TicketsStatus.Unknown;
             }
         }
-
-        //public bool Equals([AllowNull] ShowTime other) => ShowTimeComparer.Url.Equals(other);
-
-        //public override bool Equals(object obj) => Equals(obj as ShowTime);
-
-        //public override int GetHashCode() => ShowTimeComparer.Url.GetHashCode(this);
     }
 }
