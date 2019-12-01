@@ -15,106 +15,62 @@ using com.magusoft.drafthouse.ViewModel;
 using NLog;
 using GalaSoft.MvvmLight;
 using MaguSoft.ComeAndTicket.Core.Model;
+using Microsoft.EntityFrameworkCore;
 
 namespace MaguSoft.ComeAndTicket.Ui.ViewModel
 {
     class AlamoDrafthouseDataContext : ViewModelBase
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
         #region Data
-        private string mTitleFilter;
+        private string _titleFilter;
         public string TitleFilter
         {
-            get { return mTitleFilter; }
+            get { return _titleFilter; }
             set
             {
-                Set(ref mTitleFilter, value);
+                Set(ref _titleFilter, value);
                 RefreshFilters();
             }
         }
 
-        private DateTime? mDateFilter;
+        private DateTime? _dateFilter;
         public DateTime? DateFilter
         {
-            get { return mDateFilter; }
+            get { return _dateFilter; }
             set
             {
-                Set(ref mDateFilter, value);
+                Set(ref _dateFilter, value);
                 RefreshFilters();
             }
         }
 
-        private readonly ObservableCollection<Market> mMarkets;
+        private readonly ObservableCollection<Market> _markets;
         public ObservableCollection<Market> Markets
         {
             get
             {
-                return mMarkets;
+                return _markets;
             }
         }
         #endregion
 
         #region State
-        private string mStatus;
+        private string _status;
         public string Status
         {
-            get { return mStatus; }
-            set { Set(ref mStatus, value); }
+            get { return _status; }
+            set { Set(ref _status, value); }
         }
         #endregion
 
         public AlamoDrafthouseDataContext()
         {
-            mTitleFilter = string.Empty;
-            mDateFilter = null;
+            _titleFilter = string.Empty;
+            _dateFilter = null;
 
-            mMarkets = new ObservableCollection<Market>();
-            Markets.CollectionChanged += Markets_CollectionChanged;
-        }
-
-        private void Markets_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.OldItems != null)
-            {
-                foreach (Market market in e.OldItems)
-                    market.Theaters.CollectionChanged -= Theaters_CollectionChanged;
-            }
-
-            if (e.NewItems != null)
-            {
-                foreach (Market market in e.NewItems)
-                    market.Theaters.CollectionChanged += Theaters_CollectionChanged;
-            }
-        }
-
-        private void Theaters_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.OldItems != null)
-            {
-                foreach (Theater theater in e.OldItems)
-                    theater.Movies.CollectionChanged -= Movies_CollectionChanged;
-            }
-
-            if (e.NewItems != null)
-            {
-                foreach (Theater theater in e.NewItems)
-                {
-                    theater.Movies.CollectionChanged += Movies_CollectionChanged;
-                    CollectionViewSource.GetDefaultView(theater.Movies).Filter = FilterMovie;
-                }
-            }
-        }
-
-        private void Movies_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.NewItems != null)
-            {
-                foreach (Movie movie in e.NewItems)
-                {
-                    CollectionViewSource.GetDefaultView(movie.ShowTimes).Filter = FilterShowTimes;
-                }
-            }
+            _markets = new ObservableCollection<Market>();
         }
 
         private bool FilterShowTimes(object obj)
@@ -122,7 +78,7 @@ namespace MaguSoft.ComeAndTicket.Ui.ViewModel
             Debug.Assert(obj is ShowTime);
             ShowTime showTime = (ShowTime)obj;
 
-            return !DateFilter.HasValue || showTime.MyShowTime.Value.Date.Equals(DateFilter.Value.Date);
+            return !DateFilter.HasValue || showTime.Date.Value.Date.Equals(DateFilter.Value.Date);
         }
 
         private bool MovieTitleContains(Movie movie, string wantedTitle)
@@ -140,7 +96,7 @@ namespace MaguSoft.ComeAndTicket.Ui.ViewModel
             // any showtime matches the filter date
             bool showTimesFilter =
                 !DateFilter.HasValue ||
-                currentMovie.ShowTimes.Any(s => s.MyShowTime.Value.Date.Equals(DateFilter.Value.Date));
+                currentMovie.ShowTimes.Any(s => s.Date.Value.Date.Equals(DateFilter.Value.Date));
             return titleFilter && showTimesFilter;
         }
 
@@ -150,14 +106,14 @@ namespace MaguSoft.ComeAndTicket.Ui.ViewModel
             {
                 Status = string.Format("Initializing");
 
-                logger.Info("Reading markets");
+                _logger.Info("Reading markets");
                 await OnReloadMarketsAsync();
             }
             catch (Exception ex)
             {
                 Status = $"Error: {ex.Message}";
 
-                logger.Error(ex, "Exception while initializing");
+                _logger.Error(ex, "Exception while initializing");
                 throw;
             }
             finally
@@ -168,18 +124,25 @@ namespace MaguSoft.ComeAndTicket.Ui.ViewModel
 
         private async Task OnReloadMarketsAsync()
         {
-            try
+            using (var db = new ComeAndTicketContext())
             {
-                Status = "Reloading markets";
-                var markets = await Market.LoadAllMarketsAsync();
-                foreach (var market in markets)
+                try
                 {
-                    Markets.Add(market);
+                    Status = "Reloading markets";
+                    await db.Markets
+                        .Include(m => m.Theaters)
+                            .ThenInclude(t => t.ShowTimes)
+                        .LoadAsync();
+
+                    foreach (var market in db.Markets)
+                    {
+                        Markets.Add(market);
+                    }
                 }
-            } 
-            finally
-            {
-                Status = "Markets reloaded";
+                finally
+                {
+                    Status = "Markets reloaded";
+                }
             }
         }
 
@@ -189,10 +152,10 @@ namespace MaguSoft.ComeAndTicket.Ui.ViewModel
             {
                 foreach (Theater theater in market.Theaters)
                 {
-                    CollectionViewSource.GetDefaultView(theater.Movies).Refresh();
-                    foreach (Movie movie in theater.Movies)
+                    CollectionViewSource.GetDefaultView(theater.ShowTimes).Refresh();
+                    foreach (ShowTime showTime in theater.ShowTimes)
                     {
-                        CollectionViewSource.GetDefaultView(movie.ShowTimes).Refresh();
+                        CollectionViewSource.GetDefaultView(showTime).Refresh();
                     }
                 }
             }

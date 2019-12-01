@@ -44,7 +44,7 @@
             </StackPanel>
         </HierarchicalDataTemplate>
 
-        <HierarchicalDataTemplate DataType="{x:Type m:Theater}" ItemsSource="{Binding Movies}">
+        <HierarchicalDataTemplate DataType="{x:Type m:Theater}" ItemsSource="{Binding ShowTimes}">
             <StackPanel Orientation="Horizontal">
                 <Button Command="{Binding LoadMoviesCommand}" 
                         Visibility="{Binding MoviesLoaded, Converter={StaticResource InverseBooleanToVisibilityConverter}, FallbackValue=Hidden}" 
@@ -76,8 +76,8 @@
                         Visibility="{Binding TicketsOnSaleLoaded, Converter={StaticResource InverseBooleanToVisibilityConverter}, FallbackValue=Hidden}"
                         IsEnabled="{Binding CheckingTicketsOnSale, Converter={StaticResource InverseBooleanConverter}}"
                         Style="{StaticResource ReloadButtonStyle}" />
-                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding MyShowTime}" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding TicketsSaleStatus}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding Date}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding TicketsStatus}" VerticalAlignment="Center" />
             </Grid>
         </DataTemplate>
     </Window.Resources>
