@@ -15,7 +15,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 {
     public class ComeAndTicketContext : DbContext
     {
-        private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+        private static readonly NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
 
         public DbSet<Market> Markets { get; set; }
         public DbSet<Theater> Theaters { get; set; }
@@ -77,18 +77,25 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             await UpdateShowTimesAsync(db, showTimes);
         }
 
-        private static async ValueTask<IEnumerable<Market>> ReadMarketsFromWebAsync()
+        private static async Task<IEnumerable<Market>> ReadMarketsFromWebAsync()
         {
-            logger.Info($"Reading markets from web");
+            _logger.Info("Reading markets from web");
+            try
+            {
+                HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync("https://drafthouse.com/markets");
+                var marketsFromWeb =
+                    from node in marketsDocument.DocumentNode.Descendants("a")
+                    where node.Attributes["id"]?.Value == "markets-page"
+                    let url = node.Attributes["href"].Value
+                    select new Market(url, node.InnerText);
 
-            HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync("https://drafthouse.com/markets");
-            var marketsFromWeb =
-                from node in marketsDocument.DocumentNode.Descendants("a")
-                where node.Attributes["id"]?.Value == "markets-page"
-                let url = node.Attributes["href"].Value
-                select new Market(url, node.InnerText);
-
-            return marketsFromWeb;
+                return marketsFromWeb;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Retry limit exceeded when reading markets");
+                return Enumerable.Empty<Market>();
+            }
         }
 
         private static async ValueTask UpdateMarketsAsync(ComeAndTicketContext db, IEnumerable<Market> marketsFromWeb)
@@ -114,7 +121,22 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         private static async Task<IEnumerable<Theater>> ReadTheatersFromWebAsync(Market marketFromDb)
         {
-            logger.Info($"Reading theaters for {marketFromDb.Name} from web");
+            try
+            {
+                _logger.Info("Reading theaters for {Market} from web", marketFromDb.Name);
+                return await InnerReadTheatersFromWebAsync(marketFromDb);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Retry limit exceeded when reading theaters for {Market}", marketFromDb.Name);
+                return Enumerable.Empty<Theater>();
+            }
+
+        }
+
+        private static async Task<IEnumerable<Theater>> InnerReadTheatersFromWebAsync(Market marketFromDb)
+        {
+            _logger.Info("Reading theaters for {Market} from web", marketFromDb.Name);
 
             HtmlDocument marketDocument = await InternetHelpers.GetPageHtmlDocumentAsync(marketFromDb.Url);
 
@@ -152,65 +174,74 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         private static async Task<IEnumerable<IGrouping<string, ShowTime>>> ReadShowTimesFromWebAsync(Theater theaterFromDb)
         {
-            logger.Info($"Loading movies for {theaterFromDb.Name}");
-
-            // Sometimes the browser will return the page source before the page is fully loaded, in those 
-            // cases just retry until you get something. 
-            int retryCount = 0;
-            while (retryCount < 5)
+            try
             {
-                retryCount++;
-
-                HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync(theaterFromDb.CalendarUrl);
-                HtmlNode showTimeControllerNode = marketsDocument.DocumentNode.SelectSingleNode("//div[@ng-controller='ShowtimeController']");
-                Regex showTimesRegex = new Regex(@"initCalendar\('([^']+)','([^']+)'\)");
-                Match showTimesMatch = showTimesRegex.Match(showTimeControllerNode.Attributes["ng-init"].Value);
-                if (!showTimesMatch.Success)
-                    continue;
-
-                string showTimesUrlBase = showTimesMatch.Groups[1].Value;
-                string showTimesUrlCode = showTimesMatch.Groups[2].Value;
-                string ajaxUrl = $"{showTimesUrlBase}calendar/{showTimesUrlCode}";
-
-
-                string jsonContent = await InternetHelpers.GetPageContentAsync(ajaxUrl);
-                JToken json = JToken.Parse(jsonContent, new JsonLoadSettings());
-
-                // https://drafthouse.com/austin/tickets/showtime/0002/29212
-                //IEnumerable<IGrouping<string, ShowTime>> movies =
-
-                if (json["Calendar"]["Cinemas"] == null)
-                {
-                    break;
-                }
-
-                IEnumerable<IGrouping<string, ShowTime>> showTimesByMovie =
-                    from cinemaToken in json["Calendar"]["Cinemas"]
-                    from monthsNode in cinemaToken["Months"]
-                    from weeksNode in monthsNode["Weeks"]
-                    from daysNode in weeksNode["Days"]
-                    where daysNode["Films"] != null
-                    from filmsNode in daysNode["Films"]
-                    from seriesNode in filmsNode["Series"]
-                    from formatsNode in seriesNode["Formats"]
-                    from sessionsNode in formatsNode["Sessions"]
-                    let cinemaSlug = cinemaToken["MarketSlug"]?.Value<string>()
-                    let cinemaId = cinemaToken["CinemaId"]?.Value<string>()
-                    let title = filmsNode["FilmName"]?.Value<string>()
-                    let movieTitle = title
-                    let showTimeDateTime = sessionsNode["SessionDateTime"]?.Value<DateTime>()
-                    let showTimeId = sessionsNode["SessionId"]?.Value<string>()
-                    let showTimeStatus = sessionsNode["SessionStatus"]?.Value<string>()
-                    let seatsLeft = sessionsNode["SeatsLeft"]?.Value<int>()
-                    let showTimeUrl = $"https://drafthouse.com/{cinemaSlug}/tickets/showtime/{cinemaId}/{showTimeId}"
-                    let showTime = new ShowTime(theaterFromDb, showTimeUrl, showTimeDateTime, showTimeStatus, seatsLeft)
-                    group showTime by movieTitle
-                    into movieGroup
-                    select movieGroup;
-
-                return showTimesByMovie;
+                _logger.Info("Loading movies for {Theater}", theaterFromDb.Name);
+                // Sometimes the browser will return the page source before the page is fully loaded, in those 
+                // cases just retry until you get something. 
+                return await PolicyHelpers.RetryPolicy.ExecuteAsync(async () => await InnerReadShowTimesFromWebAsync(theaterFromDb));
+            } 
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Retry limit exceeded when reading showtimes for {Theater}", theaterFromDb.Name);
+                return Enumerable.Empty<IGrouping<string, ShowTime>>();
             }
-            return Enumerable.Empty<IGrouping<string, ShowTime>>();
+        }
+
+        private static async Task<IEnumerable<IGrouping<string, ShowTime>>> InnerReadShowTimesFromWebAsync(Theater theaterFromDb)
+        {
+            HtmlDocument marketsDocument = await InternetHelpers.GetPageHtmlDocumentAsync(theaterFromDb.CalendarUrl);
+            HtmlNode showTimeControllerNode = marketsDocument.DocumentNode.SelectSingleNode("//div[@ng-controller='ShowtimeController']");
+            Regex showTimesRegex = new Regex(@"initCalendar\('([^']+)','([^']+)'\)");
+            Match showTimesMatch = showTimesRegex.Match(showTimeControllerNode.Attributes["ng-init"].Value);
+            if (!showTimesMatch.Success)
+            {
+                _logger.Error("Show times did not have expected format {ShowTimeController}", showTimeControllerNode.OuterHtml);
+                throw new Exception("Show times did not have expected format");
+            }
+
+            string showTimesUrlBase = showTimesMatch.Groups[1].Value;
+            string showTimesUrlCode = showTimesMatch.Groups[2].Value;
+            string ajaxUrl = $"{showTimesUrlBase}calendar/{showTimesUrlCode}";
+
+
+            string jsonContent = await InternetHelpers.GetPageContentAsync(ajaxUrl);
+            JToken json = JToken.Parse(jsonContent, new JsonLoadSettings());
+
+            // https://drafthouse.com/austin/tickets/showtime/0002/29212
+            //IEnumerable<IGrouping<string, ShowTime>> movies =
+
+            if (json["Calendar"]["Cinemas"] == null)
+            {
+                _logger.Warn("No show time cinemas for {Theater}", theaterFromDb.Name);
+                return Enumerable.Empty<IGrouping<string, ShowTime>>();
+            }
+
+            IEnumerable<IGrouping<string, ShowTime>> showTimesByMovie =
+                from cinemaToken in json["Calendar"]["Cinemas"]
+                from monthsNode in cinemaToken["Months"]
+                from weeksNode in monthsNode["Weeks"]
+                from daysNode in weeksNode["Days"]
+                where daysNode["Films"] != null
+                from filmsNode in daysNode["Films"]
+                from seriesNode in filmsNode["Series"]
+                from formatsNode in seriesNode["Formats"]
+                from sessionsNode in formatsNode["Sessions"]
+                let cinemaSlug = cinemaToken["MarketSlug"]?.Value<string>()
+                let cinemaId = cinemaToken["CinemaId"]?.Value<string>()
+                let title = filmsNode["FilmName"]?.Value<string>()
+                let movieTitle = title
+                let showTimeDateTime = sessionsNode["SessionDateTime"]?.Value<DateTime>()
+                let showTimeId = sessionsNode["SessionId"]?.Value<string>()
+                let showTimeStatus = sessionsNode["SessionStatus"]?.Value<string>()
+                let seatsLeft = sessionsNode["SeatsLeft"]?.Value<int>()
+                let showTimeUrl = $"https://drafthouse.com/{cinemaSlug}/tickets/showtime/{cinemaId}/{showTimeId}"
+                let showTime = new ShowTime(theaterFromDb, showTimeUrl, showTimeDateTime, showTimeStatus, seatsLeft)
+                group showTime by movieTitle
+                into movieGroup
+                select movieGroup;
+
+            return showTimesByMovie;
         }
 
         private static async Task UpdateShowTimesAsync(ComeAndTicketContext db, IEnumerable<IGrouping<string, ShowTime>> showTimesByMovie)
@@ -225,7 +256,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                 string movieTitle = showTimesFromWeb.Key;
                 if (!moviesByTitle.ContainsKey(movieTitle))
                 {
-                    logger.Info($"Adding movie: {movieTitle}");
+                    _logger.Info("Adding movie: {Movie}", movieTitle);
                     var movie = new Movie(movieTitle);
                     db.Movies.Add(movie);
                     moviesByTitle.Add(movieTitle, movie);

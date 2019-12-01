@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MaguSoft.ComeAndTicket.Core.Model;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -19,10 +20,24 @@ namespace ComeAndTicketWorker
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            using (var db = new ComeAndTicketContext())
             {
-                _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                await Task.Delay(1000, stoppingToken);
+                while (!stoppingToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+
+                        _logger.LogInformation("Updating Drafthouse data from web");
+                        await ComeAndTicketContext.UpdateDatabaseFromWebAsync(db);
+                        _logger.LogInformation("Writing to database");
+                        await db.SaveChangesAsync();
+                    } 
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Exception while updating drafthouse data from web");
+                    }
+                }
             }
         }
     }

@@ -1,4 +1,8 @@
 ﻿using HtmlAgilityPack;
+using NLog;
+using Polly;
+using Polly.Contrib.WaitAndRetry;
+using Polly.Retry;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,9 +14,34 @@ using System.Threading.Tasks;
 
 namespace MaguSoft.ComeAndTicket.Core.Helpers
 {
+    public static class PolicyHelpers
+    {
+        private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
+        public static AsyncRetryPolicy RetryPolicy { get; }
+
+        static PolicyHelpers()
+        {
+            IEnumerable<TimeSpan> delay = Backoff.DecorrelatedJitterBackoffV2(
+                medianFirstRetryDelay: TimeSpan.FromSeconds(1),
+                retryCount: 5);
+            RetryPolicy = Policy
+                .Handle<Exception>()
+                .WaitAndRetryAsync(
+                    delay,
+                    (ex, ts) => _logger.Warn(ex, "Retrying in {TimeSpan}", ts));
+        }
+    }
+
     public static class InternetHelpers
     {
+        private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
+
         public static async Task<string> GetPageContentAsync(string url)
+        {
+            return await PolicyHelpers.RetryPolicy.ExecuteAsync(async () => await InnerGetPageContentAsync(url));
+        }
+
+        private static async Task<string> InnerGetPageContentAsync(string url)
         {
             using (var clientHandler = new HttpClientHandler() { AllowAutoRedirect = false })
             using (var client = new HttpClient(clientHandler))

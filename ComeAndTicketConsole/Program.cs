@@ -34,7 +34,6 @@ namespace MaguSoft.ComeAndTicket.Console
 
     class Program
     {
-        private const string CONFIG_FILE_NAME = "ComeAndTicket.config";
         private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
         private static Pushbullet _pushbulletApi;
@@ -47,14 +46,18 @@ namespace MaguSoft.ComeAndTicket.Console
             var config = new NLog.Config.LoggingConfiguration();
 
             // Targets where to log to: File and Console
+            string logLayout = "${longdate}|${level:uppercase=true}|${logger}|${threadid}|${message}|${onexception:inner=${newline}${exception:format=toString}}";
             var logFile = new NLog.Targets.FileTarget("logfile")
             {
-                Layout = "${longdate}|${level:uppercase=true}|${logger}|${message}|${onexception:inner=${newline}${exception:format=toString}}",
+                Layout = logLayout,
                 FileName = "output.log",
                 ArchiveEvery = NLog.Targets.FileArchivePeriod.Day,
                 MaxArchiveFiles = 10,
             };
-            var logConsole = new NLog.Targets.ConsoleTarget("logconsole");
+            var logConsole = new NLog.Targets.ColoredConsoleTarget("logconsole")
+            {
+                Layout = logLayout,
+            };
 
             // Rules for mapping loggers to targets
             config.AddRule(LogLevel.Info, LogLevel.Fatal, logConsole);

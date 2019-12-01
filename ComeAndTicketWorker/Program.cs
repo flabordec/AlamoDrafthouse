@@ -14,8 +14,10 @@ namespace ComeAndTicketWorker
             CreateHostBuilder(args).Build().Run();
         }
 
+        // https://devblogs.microsoft.com/dotnet/net-core-and-systemd/?WT.mc_id=-blog-scottha
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSystemd()
                 .ConfigureServices((hostContext, services) =>
                 {
                     services.AddHostedService<Worker>();
