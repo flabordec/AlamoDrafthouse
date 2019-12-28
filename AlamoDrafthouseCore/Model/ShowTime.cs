@@ -77,6 +77,9 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         public HashSet<ShowTimeTarget> TargetsUpdated { get; set; }
 
+        public DateTime Created { get; set; }
+        public DateTime LastUpdated { get; set; }
+
         public ShowTime(Theater theater, string ticketsUrl, DateTime? date, string ticketsSaleStatusString, int? seatsLeft)
         {
             TheaterUrl = theater.Url;

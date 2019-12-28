@@ -116,9 +116,6 @@ namespace MaguSoft.ComeAndTicket.Console
 
         private static async Task<int> RunAndReturnExitCodeAsync(Options opts, HashSet<IDevice> devices, ComeAndTicketContext db)
         {
-            // Convert into a service
-            // https://devblogs.microsoft.com/dotnet/net-core-and-systemd/
-
             _logger.Info("Updating Drafthouse data from web");
             await ComeAndTicketContext.UpdateDatabaseFromWebAsync(db);
             _logger.Info("Updating devices from Pushbullet");

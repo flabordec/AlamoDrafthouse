@@ -26,7 +26,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder
-            .UseNpgsql("Host=raspberrypi;Database=come_and_ticket;Username=come_and_ticket_user;Password=comeandticket")
+            .UseNpgsql("Host=strawberry;Database=come_and_ticket;Username=come_and_ticket_user;Password=comeandticket")
             .EnableSensitiveDataLogging(true);
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -280,12 +280,20 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
                     if (showTimesByTicketsUrl.TryGetValue(showTimeFromWeb.TicketsUrl, out ShowTime showTimeInDb))
                     {
+                        if (showTimeInDb.SeatsLeft != showTimeFromWeb.SeatsLeft ||
+                            showTimeInDb.Date != showTimeFromWeb.Date ||
+                            showTimeInDb.TicketsStatus != showTimeFromWeb.TicketsStatus)
+                        {
+                            showTimeInDb.LastUpdated = DateTime.UtcNow;
+                        }
                         showTimeInDb.SeatsLeft = showTimeFromWeb.SeatsLeft;
                         showTimeInDb.Date = showTimeFromWeb.Date;
                         showTimeInDb.TicketsStatus = showTimeFromWeb.TicketsStatus;
                     }
                     else
                     {
+                        showTimeFromWeb.Created = DateTime.UtcNow;
+                        showTimeFromWeb.LastUpdated = DateTime.UtcNow;
                         db.ShowTimes.Add(showTimeFromWeb);
                     }
                 }
