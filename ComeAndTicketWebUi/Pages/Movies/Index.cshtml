@@ -1,0 +1,41 @@
+﻿@page
+@model ComeAndTicketWebUi.IndexModel
+
+@{
+    ViewData["Title"] = "Movies";
+}
+
+<h1>Movies</h1>
+
+<form asp-page="./Index" method="get">
+    <div class="form-actions no-color">
+        <p>
+            Find by title:
+            <input type="text" name="TitleFilter" value="@Model.TitleFilter" />
+            <input type="submit" value="Search" class="btn btn-primary" />
+        </p>
+    </div>
+</form>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.TitleSort">
+                    @Html.DisplayNameFor(model => model.Movies.FirstOrDefault().Title)
+                </a>
+            </th>
+            <th>Details</th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model.Movies) {
+        <tr>
+            <th>@item.Title</th>
+            <td>
+                <a asp-page="./Details" asp-route-id="@item.Title">Details</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

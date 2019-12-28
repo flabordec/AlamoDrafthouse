@@ -13,6 +13,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PushbulletDotNet", "Pushbul
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketWorker", "ComeAndTicketWorker\ComeAndTicketWorker.csproj", "{6B733D55-1F85-4931-8BC5-52647B5BB1B1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComeAndTicketWebUi", "ComeAndTicketWebUi\ComeAndTicketWebUi.csproj", "{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
