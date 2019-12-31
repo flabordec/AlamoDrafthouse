@@ -7,22 +7,24 @@
 
 <h1>Show Times</h1>
 
-<form asp-page="./Details" method="get">
-    <div class="form-actions no-color">
-        <p>
-            Find by theater:
+<div class="col">
+    <form asp-page="./Details" method="get">
+        <div class="form-group">
             <input type="hidden" name="Id" value="@Model.Movie.Title" />
-            <select name="MarketFilter">
-                <option value="all-movies">All</option>
+
+            <label for="marketFilterCombo">Market</label>
+            <select class="form-control" id="marketFilterCombo" name="MarketFilter">
+                <option class="form-control" value="all-movies">All</option>
                 @foreach (var market in Model.Markets)
                 {
-                    <option value="@market" selected="@(Model.MarketFilter.Equals(market))">@market</option>
+                <option value="@market.Name" selected="@(market.Name.Equals(Model.MarketFilter))">@market.Name</option>
                 }
             </select>
-            <input type="submit" value="Search" class="btn btn-primary" />
-        </p>
-    </div>
-</form>
+        </div>
+
+        <input type="submit" value="Search" class="btn btn-primary" />
+    </form>
+</div>
 
 <div class="container">
     <h4>@Model.Movie.Title</h4>
@@ -31,40 +33,40 @@
         @{int i = 0;}
         @foreach (var showTimeGroup in Model.FilteredShowTimes.GroupBy(s => s.Theater.Name))
         {
-            @if (!showTimeGroup.Any())
+        @if (!showTimeGroup.Any())
             {
                 continue;
             }
             string theaterIx = string.Format("theater-{0}", i);
             i++;
-            
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <h5 class="panel-title">
-                        <a data-toggle="collapse" href="#@theaterIx">@showTimeGroup.Key</a>
-                    </h5>
-                </div>
-            </div>
 
-            <div id="@theaterIx" class="panel-collapse collapse" data-parent="#accordion">
-                <table class="table table-striped">
-                    <tr>
-                        <th>@Html.DisplayNameFor(model => model.Movie.ShowTimes.First().Date)</th>
-                        <th>@Html.DisplayNameFor(model => model.Movie.ShowTimes.First().SeatsLeft)</th>
-                        <th>@Html.DisplayNameFor(model => model.Movie.ShowTimes.First().TicketsUrl)</th>
-                        <th>@Html.DisplayNameFor(model => model.Movie.ShowTimes.First().LastUpdated)</th>
-                    </tr>
-                    @foreach (var showTime in showTimeGroup.OrderBy(st => st.Date))
-                    {
-                        <tr>
-                            <td>@Html.DisplayFor(model => showTime.Date)</td>
-                            <td>@Html.DisplayFor(model => showTime.SeatsLeft)</td>
-                            <td><a href="@Html.DisplayFor(model => showTime.TicketsUrl)">Buy</a></td>
-                            <td>@showTime.LastUpdated.ToLocalTime().ToString()</td>
-                        </tr>
-                    }
-                </table>
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h5 class="panel-title">
+                    <a data-toggle="collapse" href="#@theaterIx">@showTimeGroup.Key</a>
+                </h5>
             </div>
+        </div>
+
+        <div id="@theaterIx" class="panel-collapse collapse" data-parent="#accordion">
+            <table class="table table-striped">
+                <tr>
+                    <th class="col-md-5">@Html.DisplayNameFor(model => model.Movie.ShowTimes.First().Date)</th>
+                    <th class="col-md-2">@Html.DisplayNameFor(model => model.Movie.ShowTimes.First().SeatsLeft)</th>
+                    <th class="col-md-2">@Html.DisplayNameFor(model => model.Movie.ShowTimes.First().TicketsUrl)</th>
+                    <!-- <th>@Html.DisplayNameFor(model => model.Movie.ShowTimes.First().LastUpdated)</th> -->
+                </tr>
+                @foreach (var showTime in showTimeGroup.OrderBy(st => st.Date))
+                    {
+                <tr>
+                    <td class="col-md-5">@Html.DisplayFor(model => showTime.Date)</td>
+                    <td class="col-md-2">@Html.DisplayFor(model => showTime.SeatsLeft)</td>
+                    <td class="col-md-2"><a href="@Html.DisplayFor(model => showTime.TicketsUrl)">Buy</a></td>
+                    <!-- <td>@showTime.LastUpdated.ToLocalTime().ToString()</td> -->
+                </tr>
+                    }
+            </table>
+        </div>
         }
     </div>
 </div>

@@ -19,14 +19,29 @@ namespace ComeAndTicketWebUi
         }
 
         public string TitleFilter { get; set; }
+        public string MarketFilter { get; set; }
 
         public string TitleSort { get; set; }
 
+        public IList<Market> Markets { get; set; }
         public IList<Movie> Movies { get;set; }
 
-        public async Task OnGetAsync(string sortOrder, string titleFilter)
+        public Market SelectedMarket { get; set; }
+
+        public async Task OnGetAsync(string sortOrder, string titleFilter, string marketFilter)
         {
+            MarketFilter = marketFilter;
             TitleFilter = titleFilter;
+
+            Markets = _context.Markets
+                .AsNoTracking()
+                .ToList();
+
+            if (string.IsNullOrEmpty(marketFilter))
+            {
+                marketFilter = Markets.First().Name;
+                MarketFilter = marketFilter;
+            }
 
             IQueryable<Movie> query = _context.Movies
                 .Include(m => m.ShowTimes)
@@ -44,8 +59,13 @@ namespace ComeAndTicketWebUi
                     break;
             }
 
-            query = query.Where(m => m.ShowTimes.Any(st => st.Date >= DateTime.UtcNow && st.SeatsLeft > 0));
-
+            query = query.Where(m => 
+                m.ShowTimes.Any(st => 
+                    st.Date >= DateTime.UtcNow && 
+                    st.SeatsLeft > 0 &&
+                    st.Theater.Market.Name == marketFilter
+                ));
+            
             var moviesPreFilter = await query.ToListAsync();
             if (!string.IsNullOrEmpty(titleFilter))
             {

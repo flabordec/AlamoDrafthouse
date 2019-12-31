@@ -22,14 +22,11 @@ namespace ComeAndTicketWebUi
         public Movie Movie { get; set; }
         public IList<ShowTime> ShowTimes { get; set; }
         public IList<ShowTime> FilteredShowTimes { get; set; }
-        public IList<string> Markets { get; set; }
+        public IList<Market> Markets { get; set; }
         public string MarketFilter { get; set; }
 
         public async Task<IActionResult> OnGetAsync(string id, string marketFilter)
         {
-            if (string.IsNullOrEmpty(marketFilter))
-                marketFilter = "Austin";
-
             MarketFilter = marketFilter;
 
             if (id == null)
@@ -48,15 +45,15 @@ namespace ComeAndTicketWebUi
             {
                 return NotFound();
             }
+            
+            Markets = await _context.Markets
+                .AsNoTracking()
+                .ToListAsync();
 
             ShowTimes = Movie.ShowTimes
                 .Where(st => 
-                    st.Date >= DateTime.UtcNow && 
+                    st.Date >= DateTime.Now && 
                     st.SeatsLeft > 0)
-                .ToList();
-            Markets = ShowTimes
-                .Select(st => st.Theater.Market.Name)
-                .Distinct()
                 .ToList();
             if (marketFilter.Equals("all-movies"))
             {
@@ -65,7 +62,7 @@ namespace ComeAndTicketWebUi
             else 
             { 
                 FilteredShowTimes = ShowTimes
-                    .Where(st => st.Theater.Market.Name.Contains(marketFilter, StringComparison.CurrentCultureIgnoreCase))
+                    .Where(st => st.Theater.Market.Name == marketFilter)
                     .ToList();
             }
             return Page();

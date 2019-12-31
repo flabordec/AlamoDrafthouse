@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MaguSoft.ComeAndTicket.Core.Model;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +26,6 @@ namespace ComeAndTicketWebUi
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddRazorPages();
-
             services.AddDbContext<ComeAndTicketContext>();
         }
 
@@ -34,8 +34,8 @@ namespace ComeAndTicketWebUi
         {
             if (env.IsDevelopment())
             {
-                app.UseBrowserLink();
                 app.UseDeveloperExceptionPage();
+                app.UseBrowserLink();
             }
             else
             {
@@ -43,6 +43,12 @@ namespace ComeAndTicketWebUi
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
+
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            });
+            app.UseAuthentication();
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
