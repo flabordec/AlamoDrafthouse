@@ -2,6 +2,8 @@
 using MaguSoft.ComeAndTicket.Core.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PushbulletDotNet;
 using System;
@@ -22,11 +24,12 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         public DbSet<Movie> Movies { get; set; }
         public DbSet<ShowTime> ShowTimes { get; set; }
         public DbSet<Configuration> Configuration { get; set; }
-        public DbSet<Target> Targets { get; set; }
+        public DbSet<User> Users { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder
             .UseNpgsql("Host=strawberry;Database=come_and_ticket;Username=come_and_ticket_user;Password=comeandticket")
+            //.UseSqlite("Data Source=come_and_ticket.db")
             .EnableSensitiveDataLogging(true);
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -35,28 +38,30 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                 .HasIndex(b => b.Name)
                 .IsUnique();
 
-            modelBuilder.Entity<ShowTimeTarget>()
-                .HasKey(st => new { st.ShowTimeTicketsUrl, st.TargetId });
+            modelBuilder.Entity<ShowTimeNotification>()
+                .HasKey(st => new { st.ShowTimeTicketsUrl, st.UserId });
 
-            modelBuilder.Entity<ShowTimeTarget>()
+            modelBuilder.Entity<ShowTimeNotification>()
                 .HasOne(st => st.ShowTime)
-                .WithMany(s => s.TargetsUpdated)
-                .HasForeignKey(s => s.ShowTimeTicketsUrl);
+                .WithMany(s => s.UsersUpdated)
+                .HasForeignKey(sn => sn.ShowTimeTicketsUrl);
 
-            modelBuilder.Entity<ShowTimeTarget>()
-                .HasOne(st => st.Target)
-                .WithMany(t => t.ShowTimes)
-                .HasForeignKey(t => t.TargetId);
+            modelBuilder.Entity<ShowTimeNotification>()
+                .HasOne(st => st.User)
+                .WithMany(u => u.Notifications)
+                .HasForeignKey(sn => sn.UserId);
+
+            modelBuilder.Entity<User>()
+                .HasAlternateKey(u => u.UserName)
+                .HasName("User_UserName_Unique");
         }
 
         public static async Task UpdateDatabaseFromWebAsync(ComeAndTicketContext db)
         {
-            await db.Database.MigrateAsync();
-
             await db.Markets
                 .Include(m => m.Theaters)
                     .ThenInclude(t => t.ShowTimes)
-                        .ThenInclude(s => s.TargetsUpdated)
+                        .ThenInclude(s => s.UsersUpdated)
                 .LoadAsync();
             await db.Movies
                 .LoadAsync();
@@ -298,30 +303,6 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                     }
                 }
             }
-        }
-
-        public static async Task UpdateDevicesAsync(ComeAndTicketContext db, IEnumerable<IDevice> devicesFromPushbulletApi)
-        {
-            await db.Targets.LoadAsync();
-            var targetsById = await db.Targets.ToDictionaryAsync(
-                d => d.Id,
-                d => d,
-                StringComparer.OrdinalIgnoreCase);
-
-            foreach (var deviceFromPushbulletApi in devicesFromPushbulletApi)
-            {
-                if (targetsById.TryGetValue(deviceFromPushbulletApi.Id, out Target targetFromDb))
-                {
-                    targetFromDb.Nickname = deviceFromPushbulletApi.Nickname;
-                }
-                else
-                {
-                    var newTarget = new Target(deviceFromPushbulletApi.Id, deviceFromPushbulletApi.Nickname);
-                    db.Targets.Add(newTarget);
-
-                }
-            }
-            await db.SaveChangesAsync();
         }
     }
 }

@@ -75,7 +75,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         [ForeignKey(nameof(MovieTitle))]
         public Movie Movie { get; set; }
 
-        public HashSet<ShowTimeTarget> TargetsUpdated { get; set; }
+        public HashSet<ShowTimeNotification> UsersUpdated { get; set; }
 
         public DateTime Created { get; set; }
         public DateTime LastUpdated { get; set; }
@@ -88,7 +88,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             TicketsUrl = ticketsUrl;
             TicketsStatus = StringToTicketsSaleStatus(ticketsSaleStatusString);
             SeatsLeft = seatsLeft;
-            TargetsUpdated = new HashSet<ShowTimeTarget>();
+
+            UsersUpdated = new HashSet<ShowTimeNotification>();
         }
 
         public ShowTime()

@@ -1,0 +1,80 @@
+﻿@page "/movies"
+@inherits MovieOverviewBase
+
+<h1>Movies</h1>
+@if (State.HasFlag(MovieOverviewState.LoadingMarkets))
+{
+    <div>Loading data...</div>
+}
+else if (State.HasFlag(MovieOverviewState.LoadedMarkets))
+{
+    <div>
+        <EditForm Model="@DataService">
+            <div class="form-group row">
+                <label for="marketSelect" class="col-sm-3">Market:</label>
+                <select id="marketSelect" value="@SelectedMarketName" @onchange="@SelectedMarketChangedAsync" class="form-control col-sm-8">
+                    @foreach (var market in Markets)
+                    {
+                        <option value="@market.Name">@market.Name</option>
+                    }
+                </select>
+            </div>
+
+
+            @if (SelectedMarket != null)
+            {
+                <div class="form-group row">
+                    <label for="theaterSelect" class="col-sm-3">Theater:</label>
+                    <select id="theaterSelect" value="@SelectedTheaterUrl" @onchange="@SelectedTheaterChangedAsync" class="form-control col-sm-8">
+                        <option value="<All>">All</option>
+                        @foreach (var theater in SelectedMarket.Theaters)
+                        {
+                            <option value="@theater.Url">@theater.Name</option>
+                        }
+                    </select>
+                </div>
+            }
+
+            <div class="form-group row">
+                <label for="movieTitleFilterInput" class="col-sm-3">Movie Title:</label>
+                <input id="movieTitleFilterInput" value="@MovieTitleFilter" @onchange="@SelectedMovieTitleFilterChangedAsync"  class="form-control col-sm-8" />
+            </div>
+
+            @if (State.HasFlag(MovieOverviewState.LoadingMovies))
+            {
+                <div>Loading data...</div>
+            }
+            else if (State.HasFlag(MovieOverviewState.LoadedMovies))
+            {
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Title</th>
+                            <th scope="col">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var movie in Movies)
+                        {
+                            <tr>
+                                <th scope="row" class="col-md-10">@movie.Title</th>
+                                <td class="col-md-1">
+                                    @if (SelectedTheater != null)
+                                    {
+                                        <a href="@($"movies/{SelectedMarket.Name}/{SelectedTheater.Name}/{movie.Title}")" class="btn btn-primary table-btn"><span class="fas fa-info-circle" /></a>
+                                    }
+                                    else
+                                    {
+                                        <a href="@($"movies/{SelectedMarket.Name}/{movie.Title}")" class="btn btn-primary table-btn"><span class="fas fa-info-circle" /></a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </EditForm>
+    </div>
+}
+
+

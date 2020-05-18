@@ -20,24 +20,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MaguSoft.ComeAndTicket.Console
 {
-    public class Options
-    {
-        [Option('m', "market", Required = true, HelpText = "Set the market for the movies (for example: 'Austin').")]
-        public string Market { get; set; }
-        [Option('v', "movie", Required = true, HelpText = "The movie to search for.")]
-        public IEnumerable<string> Movies { get; set; }
-        [Option('i', "device-ids", Required = false, HelpText = "The PushBullet device identifier to push to")]
-        public IEnumerable<string> DeviceIdentifiers { get; set; }
-        [Option('n', "device-nicknames", Required = false, HelpText = "The PushBullet device nicknames to push to")]
-        public IEnumerable<string> DeviceNicknames { get; set; }
-    }
-
     class Program
     {
         private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
-        private static Pushbullet _pushbulletApi;
-        
         private static Dictionary<string, string> _configuration;
         
 
@@ -68,58 +54,38 @@ namespace MaguSoft.ComeAndTicket.Console
             // Apply config
             LogManager.Configuration = config;
 
-            var results = Parser.Default.ParseArguments<Options>(args);
-            if (results.Tag == ParserResultType.Parsed)
+            
+            using (var db = new ComeAndTicketContext())
             {
-                using (var db = new ComeAndTicketContext())
+                try
                 {
-                    HashSet<IDevice> devicesSet = null;
-                    try
+                    _logger.Info("Creating database");
+                    if (db.Database.IsSqlite())
                     {
-                        var options = ((Parsed<Options>)results).Value;
-
-                        _logger.Info("Options read {Options}", options);
-
-                        _logger.Info("Reading configuration from DB");
-                        _configuration = await db.Configuration.ToDictionaryAsync(c => c.Name, c => c.Value);
-                        string pushbulletApiToken = _configuration["pushbullet-api-token"];
-
-                        _logger.Info("Getting devices from Pushbullet");
-                        _pushbulletApi = new Pushbullet(pushbulletApiToken);
-                        var devicesById = options.DeviceIdentifiers.Select(async id => await _pushbulletApi.GetDeviceById(id));
-                        var devicesByNickname = options.DeviceNicknames.Select(async nickname => await _pushbulletApi.GetDeviceByNickname(nickname));
-                        var devices = await Task.WhenAll(devicesById.Concat(devicesByNickname));
-                        devicesSet = new HashSet<IDevice>(devices);
-
-                        return await RunAndReturnExitCodeAsync(options, devicesSet, db);
+                        await db.Database.EnsureCreatedAsync();
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _logger.Error(ex, "Exception while running");
-                        if (devicesSet != null)
-                        {
-                            await _pushbulletApi.PushNoteAsync(
-                                "Error while getting tickets",
-                                ex.Message,
-                                devicesSet);
-                        }
-                        return -1;
+                        await db.Database.MigrateAsync();
                     }
+                        
+
+                    _logger.Info("Reading configuration from DB");
+                    _configuration = await db.Configuration.ToDictionaryAsync(c => c.Name, c => c.Value);
+                    return await RunAndReturnExitCodeAsync(db);
                 }
-            }
-            else
-            {
-                _logger.Error("Invalid command line arguments {Arguments}", args);
-                return -2;
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Exception while running");
+                    return -1;
+                }
             }
         }
 
-        private static async Task<int> RunAndReturnExitCodeAsync(Options opts, HashSet<IDevice> devices, ComeAndTicketContext db)
+        private static async Task<int> RunAndReturnExitCodeAsync(ComeAndTicketContext db)
         {
             _logger.Info("Updating Drafthouse data from web");
-            await ComeAndTicketContext.UpdateDatabaseFromWebAsync(db);
-            _logger.Info("Updating devices from Pushbullet");
-            await ComeAndTicketContext.UpdateDevicesAsync(db, devices);
+            //await ComeAndTicketContext.UpdateDatabaseFromWebAsync(db);
 
             //await
             //    db.ShowTimes
@@ -127,58 +93,58 @@ namespace MaguSoft.ComeAndTicket.Console
             //        .Include(s => s.Theater)
             //            .ThenInclude(t => t.Market)
             //    .LoadAsync();
-            IEnumerable<ShowTime> showTimes = await FindMovies(opts, db);
-
-            if (showTimes.Any())
-            {
-                _logger.Info("Some movies found");
-                await PushMoviesAsync(showTimes, opts, devices, db);
-                _logger.Info("All new movies pushed");
-                return 0;
-            }
-            else
-            {
-                _logger.Warn("No show times for market {Market}", opts.Market);
-                return -3;
-            }
+            await PushMoviesAsync(db);
+            return 0;
         }
 
-        private static async Task<IEnumerable<ShowTime>> FindMovies(Options opts, ComeAndTicketContext db)
+        private static async Task<IEnumerable<ShowTime>> FindMoviesAsync(User user, ComeAndTicketContext db)
         {
             // The database does not support doing a case-insensitive IN operation (to make the 
             // showtime.Movie.Title IN opts.Movies)
-            // So we are stuck doing as much as we can in the database, and then converting to 
-            // a list and filtering further...
+            // So we just get all the movies in the user's market, and then filter further later
             var partialShowTimes = await
                 db.ShowTimes
-                .Where(s => EF.Functions.ILike(s.Theater.Market.Name, $"%{opts.Market}%"))
+                .Include(st => st.Movie)
+                .Include(st => st.UsersUpdated)
+                .Where(s => s.Theater.Market == user.HomeMarket)
                 .Where(s => s.SeatsLeft > 0)
                 .Where(s => s.TicketsStatus == TicketsStatus.OnSale)
                 .ToArrayAsync();
-            
-            var showTimes = new List<ShowTime>();
-            foreach (var partialShowTime in partialShowTimes)
-            {
-                if (opts.Movies.Any(m => partialShowTime.Movie.Title.Contains(m, StringComparison.CurrentCultureIgnoreCase)))
-                {
-                    showTimes.Add(partialShowTime);
-                }
-            }
 
-            return showTimes;
+            return partialShowTimes;
         }
 
-        private static async Task PushMoviesAsync(IEnumerable<ShowTime> showTimes, Options opts, IEnumerable<IDevice> devices, ComeAndTicketContext db)
+        private static async Task PushMoviesAsync(ComeAndTicketContext db)
         {
-            var targetsById = await db.Targets.ToDictionaryAsync(t => t.Id);
-            foreach (var device in devices)
+            var users = await db.Users
+                .Include(u => u.HomeMarket)
+                .Include(u => u.Notifications)
+                .Include(u => u.MovieTitlesToWatch)
+                .Include(u => u.DeviceNicknames)
+                .ToListAsync();
+            foreach (var user in users)
             {
-                var target = targetsById[device.Id];
+                if (string.IsNullOrEmpty(user.PushbulletApiKey))
+                {
+                    _logger.Warn($"User is not configured with a pushbullet API key: {user.UserName}");
+                    continue;
+                }
+
+                _logger.Info($"Getting devices from Pushbullet for user {user.UserName}");
+                var pushbulletApi = new Pushbullet(user.PushbulletApiKey);
+                var retrieveDevicesByNickname = user.DeviceNicknames.Select(async nickname => await pushbulletApi.GetDeviceByNickname(nickname.Value));
+                var devices = await Task.WhenAll(retrieveDevicesByNickname);
+
+                if (!devices.Any())
+                    continue;
+
+                _logger.Info($"Finding movies for user {user.UserName}");
+                var showTimes = await FindMoviesAsync(user, db);
 
                 IEnumerable<IGrouping<Movie, ShowTime>> moviesOnSale = (
                     from s in showTimes
-                    where MovieTitleContains(s.Movie, opts.Movies)
-                    where !MovieAlreadySent(s, target)
+                    where MovieTitleContains(s.Movie, user.MovieTitlesToWatch)
+                    where !MovieAlreadySent(s, user)
                     where s.TicketsStatus != TicketsStatus.Past
                     select s
                     ).GroupBy(
@@ -209,34 +175,35 @@ namespace MaguSoft.ComeAndTicket.Console
 
                     messageBuilder.AppendLine();
                 }
-                _logger.Info("Pushing new tickets to {DeviceName}\n{Message}", device.Nickname, messageBuilder.ToString());
 
-                await _pushbulletApi.PushNoteAsync(
-                    "New tickets available",
-                    messageBuilder.ToString(),
-                    device.Id);
-
-                MarkMovieSent(showTimesSent, target);
+                foreach (var device in devices)
+                {
+                    await pushbulletApi.PushNoteAsync(
+                        "New tickets available",
+                        messageBuilder.ToString(),
+                        device.Id);
+                }
+                MarkMovieSent(showTimesSent, user);
             }
 
             await db.SaveChangesAsync();
         }
 
-        private static bool MovieTitleContains(Movie movie, IEnumerable<string> wantedTitles)
+        private static bool MovieTitleContains(Movie movie, IEnumerable<MovieTitleToWatch> wantedTitles)
         {
-            return wantedTitles.Any(wantedTitle => movie.Title.Contains(wantedTitle, StringComparison.CurrentCultureIgnoreCase));
+            return wantedTitles.Any(wantedTitle => movie.Title.Contains(wantedTitle.Value, StringComparison.CurrentCultureIgnoreCase));
         }
 
-        private static bool MovieAlreadySent(ShowTime showTime, Target target)
+        private static bool MovieAlreadySent(ShowTime showTime, User user)
         {
-            return showTime.TargetsUpdated.Select(tu => tu.Target).Contains(target);
+            return user.Notifications.Any(n => n.ShowTime == showTime);
         }
 
-        private static void MarkMovieSent(IEnumerable<ShowTime> showTimesSent, Target target)
+        private static void MarkMovieSent(IEnumerable<ShowTime> showTimesSent, User user)
         {
             foreach (ShowTime showTime in showTimesSent)
             {
-                showTime.TargetsUpdated.Add(new ShowTimeTarget(showTime, target));
+                showTime.UsersUpdated.Add(new ShowTimeNotification(showTime, user));
             }
         }
     }

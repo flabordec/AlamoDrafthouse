@@ -1,0 +1,52 @@
+﻿@page "/movies/{MarketName}/{MovieTitle}"
+@page "/movies/{MarketName}/{TheaterName}/{MovieTitle}"
+@inherits MovieDetailsBase
+
+<h1>Movie Details</h1>
+
+@if (State.HasFlag(MovieDetailsState.LoadingMovie))
+{
+    <h3>Loading show times for @MovieTitle...</h3>
+}
+else
+{
+    <h3>Show times @MovieTitle</h3>
+    @foreach (var groupByTheater in ShowTimes.GroupBy(st => st.Theater, TheaterComparer.TheaterNameComparer))
+    {
+        var theater = groupByTheater.Key;
+        var showTimesByTheater = groupByTheater;
+
+        <h2>@theater.Name</h2>
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Seats Left</th>
+                    <th scope="col">Buy</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var groupByDate in showTimesByTheater.GroupBy(st => st.Date.Value.Date))
+                {
+                    var date = groupByDate.Key;
+                    var showTimes = groupByDate;
+
+                    <tr class="thead-light">
+                        <th colspan="3">@date.ToShortDateString()</th>
+                    </tr>
+
+                    @foreach (var showTime in showTimes)
+                    {
+                        <tr>
+                            <td scope="row" class="col-md-4">@showTime.Date.Value.ToShortTimeString()</td>
+                            <td class="col-md-4">@showTime.SeatsLeft</td>
+                            <td class="col-md-1">
+                                <a href="@showTime.TicketsUrl" class="btn btn-primary table-btn"><span class="fas fa-dollar-sign" />&nbsp;<span class="fas fa-ticket-alt" /></a>
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+    }
+}

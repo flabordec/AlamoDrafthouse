@@ -3,15 +3,17 @@ using System;
 using MaguSoft.ComeAndTicket.Core.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace MaguSoft.ComeAndTicket.Core.Migrations
 {
     [DbContext(typeof(ComeAndTicketContext))]
-    partial class ComeAndTicketContextModelSnapshot : ModelSnapshot
+    [Migration("20200517171402_Users")]
+    partial class Users
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -33,26 +35,6 @@ namespace MaguSoft.ComeAndTicket.Core.Migrations
                         .IsUnique();
 
                     b.ToTable("Configuration");
-                });
-
-            modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.DeviceNickname", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Value")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("DeviceNickname");
                 });
 
             modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.Market", b =>
@@ -77,26 +59,6 @@ namespace MaguSoft.ComeAndTicket.Core.Migrations
                     b.HasKey("Title");
 
                     b.ToTable("Movies");
-                });
-
-            modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.MovieTitleToWatch", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Value")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("MovieTitleToWatch");
                 });
 
             modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.ShowTime", b =>
@@ -175,7 +137,10 @@ namespace MaguSoft.ComeAndTicket.Core.Migrations
                         .HasColumnType("integer")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
-                    b.Property<string>("HomeMarketUrl")
+                    b.Property<string>("DeviceNicknames")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MovieTitlesToWatch")
                         .HasColumnType("text");
 
                     b.Property<string>("PasswordHash")
@@ -194,23 +159,7 @@ namespace MaguSoft.ComeAndTicket.Core.Migrations
                     b.HasAlternateKey("UserName")
                         .HasName("User_UserName_Unique");
 
-                    b.HasIndex("HomeMarketUrl");
-
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.DeviceNickname", b =>
-                {
-                    b.HasOne("MaguSoft.ComeAndTicket.Core.Model.User", null)
-                        .WithMany("DeviceNicknames")
-                        .HasForeignKey("UserId");
-                });
-
-            modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.MovieTitleToWatch", b =>
-                {
-                    b.HasOne("MaguSoft.ComeAndTicket.Core.Model.User", null)
-                        .WithMany("MovieTitlesToWatch")
-                        .HasForeignKey("UserId");
                 });
 
             modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.ShowTime", b =>
@@ -244,13 +193,6 @@ namespace MaguSoft.ComeAndTicket.Core.Migrations
                     b.HasOne("MaguSoft.ComeAndTicket.Core.Model.Market", "Market")
                         .WithMany("Theaters")
                         .HasForeignKey("MarketUrl");
-                });
-
-            modelBuilder.Entity("MaguSoft.ComeAndTicket.Core.Model.User", b =>
-                {
-                    b.HasOne("MaguSoft.ComeAndTicket.Core.Model.Market", "HomeMarket")
-                        .WithMany()
-                        .HasForeignKey("HomeMarketUrl");
                 });
 #pragma warning restore 612, 618
         }

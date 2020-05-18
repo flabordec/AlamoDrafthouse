@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -18,6 +19,39 @@ using Newtonsoft.Json.Linq;
 
 namespace MaguSoft.ComeAndTicket.Core.Model
 {
+    public class TheaterComparer
+    {
+        public static IEqualityComparer<Theater> TheaterNameComparer => new TheaterNameComparer(StringComparer.CurrentCultureIgnoreCase);
+    }
+
+    class TheaterNameComparer : IEqualityComparer<Theater>
+    {
+        private readonly StringComparer _comparer;
+
+        public TheaterNameComparer(StringComparer comparer)
+        {
+            _comparer = comparer;
+        }
+
+        public bool Equals([AllowNull] Theater x, [AllowNull] Theater y)
+        {
+            if (ReferenceEquals(null, x) && ReferenceEquals(null, y))
+                return true;
+            if (ReferenceEquals(null, x))
+                return false;
+            if (ReferenceEquals(null, y))
+                return false;
+            if (ReferenceEquals(x, y))
+                return true;
+            return _comparer.Equals(x.Name, y.Name);
+        }
+
+        public int GetHashCode([DisallowNull] Theater obj)
+        {
+            return _comparer.GetHashCode(obj.Name);
+        }
+    }
+
     public class Theater
     {
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
