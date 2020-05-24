@@ -1,18 +1,19 @@
 ﻿@page "/users"
 @inherits UserDetailsBase
 
+
 <h1>User Details</h1>
 @if (State.HasFlag(UserDetailsState.Initializing))
 {
     <div>Loading data...</div>
 }
-else if (State.HasFlag(UserDetailsState.LoadedUser) || State.HasFlag(UserDetailsState.CreatedUser))
+else if (State.HasFlag(UserDetailsState.Initialized) && User != null)
 {
     <div>
         <EditForm Model="@DataService">
             <div class="form-group row">
-                <label for="userNameLabel" class="col-sm-3">User name:</label>
-                <label id="userNameLabel" class="col-sm-9">@User.UserName</label>
+                <label for="userNameLabel" class="col-sm-3">E-Mail:</label>
+                <label id="userNameLabel" class="col-sm-9">@User.EMail</label>
             </div>
 
             <div class="form-group row">
@@ -22,20 +23,12 @@ else if (State.HasFlag(UserDetailsState.LoadedUser) || State.HasFlag(UserDetails
 
             <div class="form-group row">
                 <label for="countrySelect" class="col-sm-3">Market:</label>
-                @if (State.HasFlag(UserDetailsState.LoadedMarkets))
-                {
-                    <InputSelect id="countrySelect" @bind-Value="@UserMarketName" class="form-control col-sm-9">
-                        @foreach (var market in Markets)
-                        {
-                            <option value="@market.Name">@market.Name</option>
-                        }
-                    </InputSelect>
-                }
-                else
-                {
-                <div class="form-control col-sm-12">Loading...</div>
-                }
-            
+                <InputSelect id="countrySelect" @bind-Value="@UserMarketName" class="form-control col-sm-9">
+                    @foreach (var market in Markets)
+                    {
+                        <option value="@market.Name">@market.Name</option>
+                    }
+                </InputSelect>
             </div>
 
             <div class="form-group row">
@@ -44,13 +37,14 @@ else if (State.HasFlag(UserDetailsState.LoadedUser) || State.HasFlag(UserDetails
 
                 <button class="btn btn-outline-secondary col-sm-3" @onclick="HandleAddMovieToWatch">Add</button>
 
-                <ul class="list-group">
+                <span class="col-sm-3" />
+                <ul class="col-sm-9 list-group">
                     @foreach (var movieToWatch in User.MovieTitlesToWatch)
                     {
-                    <li class="list-group-item">
-                        @movieToWatch.Value
-                        <span style="color: tomato" class="fas fa-minus-circle" @onclick="() => HandleRemoveMovieToWatch(movieToWatch)" />
-                    </li>
+                        <li class="list-group-item">
+                            @movieToWatch.Value
+                            <span style="color: tomato" class="fas fa-minus-circle" @onclick="() => HandleRemoveMovieToWatch(movieToWatch)" />
+                        </li>
                     }
                 </ul>
             </div>
@@ -60,7 +54,8 @@ else if (State.HasFlag(UserDetailsState.LoadedUser) || State.HasFlag(UserDetails
                 <InputText id="deviceNicknameInputText" @bind-Value="@DeviceNickname" class="col-sm-6" />
                 <button class="btn btn-outline-secondary col-sm-3" @onclick="HandleAddDeviceNickname">Add</button>
 
-                <ul class="list-group">
+                <span class="col-sm-3" />
+                <ul class="col-sm-9 list-group">
                     @foreach (var deviceNickname in User.DeviceNicknames)
                     {
                         <li class="list-group-item">
@@ -85,24 +80,6 @@ else if (State.HasFlag(UserDetailsState.LoadedUser) || State.HasFlag(UserDetails
 else if (State.HasFlag(UserDetailsState.Initialized))
 {
     <div>
-        <EditForm Model="@DataService">
-            <div class="form-group row">
-                <label for="userNameInputText" class="col-sm-3">User name:</label>
-                <InputText id="userNameInputText" placeholder="User name" @bind-Value="@UserName" class="form-control col-sm-9" />
-            </div>
-
-            <div class="form-group row">
-                <label for="passwordInputText" class="col-sm-3">Password:</label>
-                <InputText type="password" placeholder="Password" id="passwordInputText" @bind-Value="@Password" class="form-control col-sm-9" />
-            </div>
-
-            <button type="submit" class="btn btn-primary edit-btn" @onclick="HandleLogIn">Log in</button>
-            <button type="submit" class="btn" @onclick="HandleRegister">Register</button>
-
-            @if (State.HasFlag(UserDetailsState.InvalidUser))
-            {
-                <div class="alert alert-danger">@Message</div>
-            }
-        </EditForm>
+        <div>Please login to continue.</div>
     </div>
 }

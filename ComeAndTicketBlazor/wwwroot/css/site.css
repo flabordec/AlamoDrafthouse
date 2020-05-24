@@ -30,6 +30,10 @@ app {
     flex: 1;
 }
 
+    .main .navbar-brand img {
+        height: 32px;
+    }
+
     .main .top-row {
         background-color: #f7f7f7;
         border-bottom: 1px solid #d6d5d5;
@@ -57,6 +61,10 @@ app {
     .sidebar .navbar-brand {
         font-size: 1.1rem;
     }
+    
+        .sidebar .navbar-brand img {
+            height: 32px;
+        }
 
     .sidebar .oi {
         width: 2rem;

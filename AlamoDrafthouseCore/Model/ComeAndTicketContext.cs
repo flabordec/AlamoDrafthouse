@@ -1,13 +1,16 @@
 ﻿using HtmlAgilityPack;
 using MaguSoft.ComeAndTicket.Core.Helpers;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Npgsql;
 using PushbulletDotNet;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,6 +22,9 @@ namespace MaguSoft.ComeAndTicket.Core.Model
     {
         private static readonly NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
 
+        private readonly string _userName;
+        private readonly string _password;
+
         public DbSet<Market> Markets { get; set; }
         public DbSet<Theater> Theaters { get; set; }
         public DbSet<Movie> Movies { get; set; }
@@ -26,11 +32,34 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         public DbSet<Configuration> Configuration { get; set; }
         public DbSet<User> Users { get; set; }
 
+        public ComeAndTicketContext(string userName, string password)
+        {
+            _userName = userName;
+            _password = password;
+        }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder
-            .UseNpgsql("Host=strawberry;Database=come_and_ticket;Username=come_and_ticket_user;Password=comeandticket")
-            //.UseSqlite("Data Source=come_and_ticket.db")
+            .UseNpgsql(CreateNpgsqlConnection())
+            //.UseSqlite(CreateInMemoryDatabase())
             .EnableSensitiveDataLogging(true);
+
+        private DbConnection CreateNpgsqlConnection()
+        {
+            var builder = new NpgsqlConnectionStringBuilder("Host=strawberry;Database=come_and_ticket");
+            builder.Username = _userName;
+            builder.Password = _password;
+            
+            var connection = new NpgsqlConnection(builder.ConnectionString);
+            return connection;
+        }
+
+        private DbConnection CreateInMemoryDatabase()
+        {
+            var connection = new SqliteConnection("DataSource=file::memory:?cache=shared");
+            connection.Open();
+            return connection;
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -52,8 +81,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                 .HasForeignKey(sn => sn.UserId);
 
             modelBuilder.Entity<User>()
-                .HasAlternateKey(u => u.UserName)
-                .HasName("User_UserName_Unique");
+                .HasAlternateKey(u => u.EMail)
+                .HasName("User_EMail_Unique");
         }
 
         public static async Task UpdateDatabaseFromWebAsync(ComeAndTicketContext db)

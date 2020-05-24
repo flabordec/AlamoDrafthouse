@@ -11,6 +11,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ComeAndTicketBlazor.Data;
 using MaguSoft.ComeAndTicket.Core.Model;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
+using System.Net.Http;
 
 namespace ComeAndTicketBlazor
 {
@@ -29,8 +33,37 @@ namespace ComeAndTicketBlazor
         {
             services.AddRazorPages();
             services.AddServerSideBlazor();
-            services.AddSingleton<ComeAndTicketContext>();
+
+            IConfigurationSection dbAuthSection = Configuration.GetSection("Authentication:Database");
+            var context = new ComeAndTicketContext(dbAuthSection["UserName"], dbAuthSection["Password"]);
+            services.AddSingleton<ComeAndTicketContext>(context);
+
             services.AddSingleton<IComeAndTicketDataService, ComeAndTicketDataService>();
+
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
+            services.AddAuthentication().AddGoogle(options =>
+            {
+                IConfigurationSection googleAuthSection = Configuration.GetSection("Authentication:Google");
+
+                options.ClientId = googleAuthSection["ClientId"];
+                options.ClientSecret = googleAuthSection["ClientSecret"];
+                options.ClaimActions.MapJsonKey("urn:google:profile", "link");
+                options.ClaimActions.MapJsonKey("urn:google:image", "picture");
+            });
+
+            
+
+            // From: https://github.com/aspnet/Blazor/issues/1554
+            // Adds HttpContextAccessor used to determine if a user is logged in and what their username is
+            services.AddHttpContextAccessor();
+            services.AddScoped<HttpContextAccessor>();
+
+            // Required for HttpClient support in the Blazor Client project
+            services.AddHttpClient();
+            services.AddScoped<HttpClient>();
+
+            // Pass settings to other components
+            services.AddSingleton<IConfiguration>(Configuration);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -51,6 +84,9 @@ namespace ComeAndTicketBlazor
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            app.UseCookiePolicy();
+            app.UseAuthentication();
 
             app.UseEndpoints(endpoints =>
             {

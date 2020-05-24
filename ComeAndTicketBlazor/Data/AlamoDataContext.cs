@@ -14,8 +14,7 @@ namespace ComeAndTicketBlazor.Data
         Task<IEnumerable<Market>> GetMarketsAsync();
         Task<IEnumerable<Movie>> GetMoviesForMarketAsync(Market market, Theater theater, string sortOrder, string titleFilter);
         Task<IEnumerable<ShowTime>> GetShowTimesAsync(string movieTitle, string marketName, string theaterName);
-        Task<User> GetUserAsync(string userName, string password);
-        Task<User> RegisterUserAsync(string userName, string password);
+        Task<User> GetUserAsync(string userName);
         Task<int> Save();
     }
 
@@ -135,28 +134,25 @@ namespace ComeAndTicketBlazor.Data
             return showTimes;
         }
 
-        public async Task<User> GetUserAsync(string userName, string password) =>
-            await ExecuteActionInContext(() => InnerGetUserAsync(userName, password));
-        private async Task<User> InnerGetUserAsync(string userName, string password)
+        public async Task<User> GetUserAsync(string userName) =>
+            await ExecuteActionInContext(() => InnerGetUserAsync(userName));
+        private async Task<User> InnerGetUserAsync(string userName)
         {
-            User user = new User(userName, password);
+            User user = new User(userName);
             var dbUser = await _dbContext.Users
                     .Include(u => u.DeviceNicknames)
                     .Include(u => u.MovieTitlesToWatch)
-                .Where(u => u.UserName == user.UserName && u.PasswordHash == user.PasswordHash)
+                .Where(u => u.EMail == user.EMail)
                 .FirstOrDefaultAsync();
 
-            return dbUser;
-        }
+            if (dbUser == null)
+            {
+                dbUser = user;
+                _dbContext.Users.Add(user);
+                await _dbContext.SaveChangesAsync();
+            }
 
-        public async Task<User> RegisterUserAsync(string userName, string password) =>
-            await ExecuteActionInContext(() => InnerRegisterUserAsync(userName, password));
-        private async Task<User> InnerRegisterUserAsync(string userName, string password)
-        {
-            User user = new User(userName, password);
-            _dbContext.Users.Add(user);
-            await _dbContext.SaveChangesAsync();
-            return user;
+            return dbUser;
         }
 
         public async Task<int> Save() =>

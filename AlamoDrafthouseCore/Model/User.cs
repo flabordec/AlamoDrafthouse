@@ -30,10 +30,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "You must specify a user name")]
-        public string UserName { get; set; }
-        [Required(ErrorMessage = "You must specify a password")]
-        public string PasswordHash { get; set; }
+        [Required(ErrorMessage = "You must specify an e-mail")]
+        public string EMail { get; set; }
 
         public HashSet<ShowTimeNotification> Notifications { get; set; }
 
@@ -45,26 +43,15 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         public Market HomeMarket { get; set; }
 
-        public User(string userName, string password)
+        public User(string eMail)
         {
-            UserName = userName;
-            PasswordHash = CalculatePasswordHash(password);
+            EMail = eMail;
             Notifications = new HashSet<ShowTimeNotification>();
             MovieTitlesToWatch = new HashSet<MovieTitleToWatch>();
             DeviceNicknames = new HashSet<DeviceNickname>();
         }
 
         public User() { }
-
-        private static string CalculatePasswordHash(string password)
-        {
-            using (SHA256 mySHA256 = SHA256.Create())
-            {
-                byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-                byte[] hashValue = mySHA256.ComputeHash(passwordBytes);
-                return BitConverter.ToString(hashValue);
-            }
-        }
     }
 
     public class MovieTitleToWatch

@@ -126,11 +126,11 @@ namespace MaguSoft.ComeAndTicket.Console
             {
                 if (string.IsNullOrEmpty(user.PushbulletApiKey))
                 {
-                    _logger.Warn($"User is not configured with a pushbullet API key: {user.UserName}");
+                    _logger.Warn($"User is not configured with a pushbullet API key: {user.EMail}");
                     continue;
                 }
 
-                _logger.Info($"Getting devices from Pushbullet for user {user.UserName}");
+                _logger.Info($"Getting devices from Pushbullet for user {user.EMail}");
                 var pushbulletApi = new Pushbullet(user.PushbulletApiKey);
                 var retrieveDevicesByNickname = user.DeviceNicknames.Select(async nickname => await pushbulletApi.GetDeviceByNickname(nickname.Value));
                 var devices = await Task.WhenAll(retrieveDevicesByNickname);
@@ -138,7 +138,7 @@ namespace MaguSoft.ComeAndTicket.Console
                 if (!devices.Any())
                     continue;
 
-                _logger.Info($"Finding movies for user {user.UserName}");
+                _logger.Info($"Finding movies for user {user.EMail}");
                 var showTimes = await FindMoviesAsync(user, db);
 
                 IEnumerable<IGrouping<Movie, ShowTime>> moviesOnSale = (
