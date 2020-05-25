@@ -18,6 +18,7 @@ using MaguSoft.ComeAndTicket.Core.Helpers;
 using PushbulletDotNet;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using System.Reflection;
 
 namespace MaguSoft.ComeAndTicket.Console
 {
@@ -27,9 +28,19 @@ namespace MaguSoft.ComeAndTicket.Console
 
         static async Task<int> Main(string[] args)
         {
-            IConfiguration config = new ConfigurationBuilder()
-                .AddUserSecrets("8e048337-f50e-490d-b2a5-5b87d81786fb")
-                .Build();
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .AddUserSecrets(typeof(Program).Assembly, optional: true)
+                .AddEnvironmentVariables();
+
+            if (args != null)
+            {
+                builder.AddCommandLine(args);
+            }
+
+            var config = builder.Build();
+
             ConfigureLogging();
 
             IConfigurationSection dbAuthSection = config.GetSection("Authentication:Database");

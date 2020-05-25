@@ -35,7 +35,9 @@ namespace ComeAndTicketBlazor
             services.AddServerSideBlazor();
 
             IConfigurationSection dbAuthSection = Configuration.GetSection("Authentication:Database");
-            var context = new ComeAndTicketContext(dbAuthSection["UserName"], dbAuthSection["Password"]);
+            string userName = dbAuthSection["UserName"];
+            string password = dbAuthSection["Password"];
+            var context = new ComeAndTicketContext(userName, password);
             services.AddSingleton<ComeAndTicketContext>(context);
 
             services.AddSingleton<IComeAndTicketDataService, ComeAndTicketDataService>();
@@ -50,8 +52,6 @@ namespace ComeAndTicketBlazor
                 options.ClaimActions.MapJsonKey("urn:google:profile", "link");
                 options.ClaimActions.MapJsonKey("urn:google:image", "picture");
             });
-
-            
 
             // From: https://github.com/aspnet/Blazor/issues/1554
             // Adds HttpContextAccessor used to determine if a user is logged in and what their username is
