@@ -69,7 +69,7 @@ namespace ComeAndTicketWorker
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            using (var db = new ComeAndTicketContext())
+            using (var db = new ComeAndTicketContext("come_and_ticket_user", "comeandticket"))
             {
                 while (!stoppingToken.IsCancellationRequested)
                 {

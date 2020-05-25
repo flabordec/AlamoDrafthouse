@@ -9,10 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketConsole", "Com
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PushbulletDotNet", "PushbulletDotNet\PushbulletDotNet.csproj", "{F326FB67-7EEB-474A-8EBD-4D6F0217663E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketWorker", "ComeAndTicketWorker\ComeAndTicketWorker.csproj", "{6B733D55-1F85-4931-8BC5-52647B5BB1B1}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketWebUi", "ComeAndTicketWebUi\ComeAndTicketWebUi.csproj", "{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketBlazor", "ComeAndTicketBlazor\ComeAndTicketBlazor.csproj", "{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}"
 EndProject
 Global
@@ -33,14 +29,6 @@ Global
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6B733D55-1F85-4931-8BC5-52647B5BB1B1}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E5763546-28E8-423C-9F4C-0FD2C6CBF79C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}.Release|Any CPU.ActiveCfg = Release|Any CPU

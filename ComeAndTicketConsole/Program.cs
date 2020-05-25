@@ -17,6 +17,7 @@ using MaguSoft.ComeAndTicket.Core.Model;
 using MaguSoft.ComeAndTicket.Core.Helpers;
 using PushbulletDotNet;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace MaguSoft.ComeAndTicket.Console
 {
@@ -24,12 +25,43 @@ namespace MaguSoft.ComeAndTicket.Console
     {
         private static readonly Logger _logger = LogManager.GetCurrentClassLogger();
 
-        private static Dictionary<string, string> _configuration;
-        
-
         static async Task<int> Main(string[] args)
         {
-            var config = new NLog.Config.LoggingConfiguration();
+            IConfiguration config = new ConfigurationBuilder()
+                .AddUserSecrets("8e048337-f50e-490d-b2a5-5b87d81786fb")
+                .Build();
+            ConfigureLogging();
+
+            IConfigurationSection dbAuthSection = config.GetSection("Authentication:Database");
+            string userName = dbAuthSection["UserName"];
+            string password = dbAuthSection["Password"];
+            using (var db = new ComeAndTicketContext(userName, password))
+            {
+                try
+                {
+                    _logger.Info("Creating database");
+                    if (db.Database.IsSqlite())
+                    {
+                        await db.Database.EnsureCreatedAsync();
+                    }
+                    else
+                    {
+                        await db.Database.MigrateAsync();
+                    }
+
+                    return await RunAndReturnExitCodeAsync(db);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Exception while running");
+                    return -1;
+                }
+            }
+        }
+
+        private static void ConfigureLogging()
+        {
+            var logConfig = new NLog.Config.LoggingConfiguration();
 
             // Targets where to log to: File and Console
             string logLayout = "${longdate}|${level:uppercase=true}|${logger}|${threadid}|${message}|${onexception:inner=${newline}${exception:format=toString}}";
@@ -48,44 +80,17 @@ namespace MaguSoft.ComeAndTicket.Console
             };
 
             // Rules for mapping loggers to targets
-            config.AddRule(LogLevel.Info, LogLevel.Fatal, logConsole);
-            config.AddRule(LogLevel.Debug, LogLevel.Fatal, logFile);
+            logConfig.AddRule(LogLevel.Info, LogLevel.Fatal, logConsole);
+            logConfig.AddRule(LogLevel.Debug, LogLevel.Fatal, logFile);
 
             // Apply config
-            LogManager.Configuration = config;
-
-            
-            using (var db = new ComeAndTicketContext())
-            {
-                try
-                {
-                    _logger.Info("Creating database");
-                    if (db.Database.IsSqlite())
-                    {
-                        await db.Database.EnsureCreatedAsync();
-                    }
-                    else
-                    {
-                        await db.Database.MigrateAsync();
-                    }
-                        
-
-                    _logger.Info("Reading configuration from DB");
-                    _configuration = await db.Configuration.ToDictionaryAsync(c => c.Name, c => c.Value);
-                    return await RunAndReturnExitCodeAsync(db);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Exception while running");
-                    return -1;
-                }
-            }
+            LogManager.Configuration = logConfig;
         }
 
         private static async Task<int> RunAndReturnExitCodeAsync(ComeAndTicketContext db)
         {
             _logger.Info("Updating Drafthouse data from web");
-            //await ComeAndTicketContext.UpdateDatabaseFromWebAsync(db);
+            await ComeAndTicketContext.UpdateDatabaseFromWebAsync(db);
 
             //await
             //    db.ShowTimes
