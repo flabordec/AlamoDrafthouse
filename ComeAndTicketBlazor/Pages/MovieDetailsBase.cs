@@ -30,7 +30,7 @@ namespace ComeAndTicketBlazor.Pages
         [Parameter]
         public string TheaterName { get; set; }
 
-        public IEnumerable<ShowTime> ShowTimes { get; set; }
+        public IEnumerable<Presentation> ShowTimes { get; set; }
 
         public MovieDetailsState State { get; private set; }
 

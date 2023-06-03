@@ -9,6 +9,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -61,6 +62,35 @@ namespace MaguSoft.ComeAndTicket.Core.Helpers
                 {
                     string source = await response.Content.ReadAsStringAsync();
                     return source;
+                }
+            }
+        }
+
+        public static async Task<T> GetPageJsonAsync<T>(string url)
+        {
+            return await PolicyHelpers.RetryPolicy.ExecuteAsync(async () => await InnerGetPageJsonAsync<T>(url));
+        }
+
+        private static async Task<T> InnerGetPageJsonAsync<T>(string url)
+        {
+            using (var clientHandler = new HttpClientHandler() { AllowAutoRedirect = false })
+            using (var client = new HttpClient(clientHandler))
+            {
+                // The alamo put a redirect from an HTTPS site to an HTTP site, in .NET core 
+                // the HttpClient will not follow these redirects becuase of security, but 
+                // we need to follow the redirect to get data.
+                var response = await client.GetAsync(url);
+                if (response.StatusCode == HttpStatusCode.Redirect ||
+                    response.StatusCode == HttpStatusCode.PermanentRedirect ||
+                    response.StatusCode == HttpStatusCode.RedirectMethod ||
+                    response.StatusCode == HttpStatusCode.TemporaryRedirect)
+                {
+                    return await GetPageJsonAsync<T>(response.Headers.Location.AbsoluteUri);
+                }
+                else
+                {
+                    T jsonObject = await response.Content.ReadFromJsonAsync<T>();
+                    return jsonObject;
                 }
             }
         }

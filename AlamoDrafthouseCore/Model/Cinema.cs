@@ -7,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using GalaSoft.MvvmLight;
@@ -21,10 +22,10 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 {
     public class TheaterComparer
     {
-        public static IEqualityComparer<Theater> TheaterNameComparer => new TheaterNameComparer(StringComparer.CurrentCultureIgnoreCase);
+        public static IEqualityComparer<Cinema> TheaterNameComparer => new TheaterNameComparer(StringComparer.CurrentCultureIgnoreCase);
     }
 
-    class TheaterNameComparer : IEqualityComparer<Theater>
+    class TheaterNameComparer : IEqualityComparer<Cinema>
     {
         private readonly StringComparer _comparer;
 
@@ -33,7 +34,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             _comparer = comparer;
         }
 
-        public bool Equals([AllowNull] Theater x, [AllowNull] Theater y)
+        public bool Equals([AllowNull] Cinema x, [AllowNull] Cinema y)
         {
             if (ReferenceEquals(null, x) && ReferenceEquals(null, y))
                 return true;
@@ -46,38 +47,29 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             return _comparer.Equals(x.Name, y.Name);
         }
 
-        public int GetHashCode([DisallowNull] Theater obj)
+        public int GetHashCode([DisallowNull] Cinema obj)
         {
             return _comparer.GetHashCode(obj.Name);
         }
     }
 
-    public class Theater
+    public class Cinema
     {
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
-        [Required(ErrorMessage = "You must specify a URL"), Key, DatabaseGenerated(DatabaseGeneratedOption.None)]
-        public string Url { get; set; }
-        public string CalendarUrl
-        {
-            get { return Url.Replace("theater", "calendar"); }
-        }
-
-        [Required(ErrorMessage = "You must specify a name")]
+        [Key, Required(ErrorMessage = "You must specify an ID"), JsonPropertyName("id")]
+        public string Id { get; set; }
+        [Required(ErrorMessage = "You must specify a name"), JsonPropertyName("name")]
         public string Name { get; set; }
+        [Required(ErrorMessage = "You must specify a slug"), JsonPropertyName("slug")]
+        public string Slug { get; set; }
+
+
 
         public Market Market { get; set; }
+        public HashSet<Presentation> Presentations { get; } = new ();
+        public HashSet<Session> Sessions { get; } = new ();
 
-        public HashSet<ShowTime> ShowTimes { get; set; }
-
-        public Theater(Market market, string url, string name)
-        {
-            Market = market;
-            Name = name;
-            Url = url;
-            ShowTimes = new HashSet<ShowTime>();
-        }
-
-        public Theater() { }
+        public Cinema() { }
     }
 }

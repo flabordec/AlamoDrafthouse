@@ -27,9 +27,9 @@ else if (State.HasFlag(MovieOverviewState.LoadedMarkets))
                     <label for="theaterSelect" class="col-sm-3">Theater:</label>
                     <select id="theaterSelect" value="@SelectedTheaterUrl" @onchange="@SelectedTheaterChangedAsync" class="form-control col-sm-8">
                         <option value="<All>">All</option>
-                        @foreach (var theater in SelectedMarket.Theaters)
+                        @foreach (var theater in SelectedMarket.Cinemas)
                         {
-                            <option value="@theater.Url">@theater.Name</option>
+                            <option @key="theater" value="@theater.Url">@theater.Name</option>
                         }
                     </select>
                 </div>

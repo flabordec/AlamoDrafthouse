@@ -12,8 +12,8 @@ namespace ComeAndTicketBlazor.Data
     {
         Task InitializeAsync();
         Task<IEnumerable<Market>> GetMarketsAsync();
-        Task<IEnumerable<Movie>> GetMoviesForMarketAsync(Market market, Theater theater, string sortOrder, string titleFilter);
-        Task<IEnumerable<ShowTime>> GetShowTimesAsync(string movieTitle, string marketName, string theaterName);
+        Task<IEnumerable<Movie>> GetMoviesForMarketAsync(Market market, Cinema theater, string sortOrder, string titleFilter);
+        Task<IEnumerable<Presentation>> GetShowTimesAsync(string movieTitle, string marketName, string theaterName);
         Task<User> GetUserAsync(string userName);
         Task<int> Save();
     }
@@ -54,13 +54,13 @@ namespace ComeAndTicketBlazor.Data
             return await 
                 _dbContext
                 .Markets
-                    .Include(m => m.Theaters)
+                    .Include(m => m.Cinemas)
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<Movie>> GetMoviesForMarketAsync(Market market, Theater theater, string sortOrder, string titleFilter) => 
+        public async Task<IEnumerable<Movie>> GetMoviesForMarketAsync(Market market, Cinema theater, string sortOrder, string titleFilter) => 
             await ExecuteActionInContext(() => InnerGetMoviesForMarketAsync(market, theater, sortOrder, titleFilter));
-        private async Task<IEnumerable<Movie>> InnerGetMoviesForMarketAsync(Market market, Theater theater, string sortOrder, string titleFilter)
+        private async Task<IEnumerable<Movie>> InnerGetMoviesForMarketAsync(Market market, Cinema theater, string sortOrder, string titleFilter)
         {
             IQueryable<Movie> query = _dbContext.Movies
                 .Include(m => m.ShowTimes);
@@ -108,11 +108,11 @@ namespace ComeAndTicketBlazor.Data
             return movies;
         }
 
-        public async Task<IEnumerable<ShowTime>> GetShowTimesAsync(string movieTitle, string marketName, string theaterName) =>
+        public async Task<IEnumerable<Presentation>> GetShowTimesAsync(string movieTitle, string marketName, string theaterName) =>
             await ExecuteActionInContext(() => InnerGetShowTimesAsync(movieTitle, marketName, theaterName));
-        private async Task<IEnumerable<ShowTime>> InnerGetShowTimesAsync(string movieTitle, string marketName, string theaterName)
+        private async Task<IEnumerable<Presentation>> InnerGetShowTimesAsync(string movieTitle, string marketName, string theaterName)
         {
-            IQueryable<ShowTime> query =
+            IQueryable<Presentation> query =
                 _dbContext.ShowTimes
                 .Include(st => st.Theater)
                     .ThenInclude(t => t.Market);

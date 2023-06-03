@@ -1,6 +1,50 @@
 ﻿@page "/"
+@using Microsoft.Extensions.Configuration
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <img class="img-fluid" src="images/ComeAndTicket.png" />
 </div>
+@if (Configuration.GetValue<bool>("DisplayVariables"))
+{
+<div>
+    <table class="table-bordered">
+        <thead>
+            <tr>
+                <th>Key</th>
+                <th>Path</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in GetAllConfigurations())
+            {
+            <tr>
+                <td>@c.Key</td>
+                <td>@c.Path</td>
+                <td>@c.Value</td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+}
+
+@{
+    IEnumerable<(string Key, string Path, string Value)> GetAllConfigurations()
+    {
+        var queue = new Queue<Microsoft.Extensions.Configuration.IConfigurationSection>();
+        foreach (var child in Configuration.GetChildren())
+            queue.Enqueue(child);
+
+        while (queue.Any())
+        {
+            var curr = queue.Dequeue();
+            yield return (curr.Key, curr.Path, curr.Value);
+
+            foreach (var child in curr.GetChildren())
+                queue.Enqueue(child);
+        }
+    }
+}

@@ -9,6 +9,8 @@ using MaguSoft.ComeAndTicket.Core.Helpers;
 using MaguSoft.ComeAndTicket.Core.ExtensionMethods;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace MaguSoft.ComeAndTicket.Core.Model
 {
@@ -16,18 +18,18 @@ namespace MaguSoft.ComeAndTicket.Core.Model
     {
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
-        [Required(ErrorMessage = "You must specify a URL"), Key, DatabaseGenerated(DatabaseGeneratedOption.None)]
-        public string Url { get; set; }
-        [Required(ErrorMessage = "You must specify a Name")]
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
+        [Required(ErrorMessage = "You must specify a Slug"), JsonPropertyName("slug")]
+        public string Slug { get; set; }
+        [Required(ErrorMessage = "You must specify a Name"), JsonPropertyName("name")]
         public string Name { get; set; }
 
-        public List<Theater> Theaters { get; }
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public string MarketUrl => $"https://drafthouse.com/s/mother/v2/schedule/market/{Slug}";
 
-        public Market(string url, string name)
-        {
-            Url = url;
-            Name = name;
-            Theaters = new List<Theater>();
-        }
+
+        public HashSet<Cinema> Cinemas { get; } = new ();
+        public HashSet<Presentation> Presentations { get; } = new ();
     }
 }

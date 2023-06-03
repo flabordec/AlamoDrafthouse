@@ -43,7 +43,7 @@ namespace ComeAndTicketBlazor.Pages
             }
         }
 
-        public Theater SelectedTheater { get; set; }
+        public Cinema SelectedTheater { get; set; }
         public string SelectedTheaterUrl
         {
             get => SelectedTheater?.Url ?? "<All>";
@@ -51,7 +51,7 @@ namespace ComeAndTicketBlazor.Pages
             {
                 if (SelectedTheaterUrl != value)
                 {
-                    SelectedTheater = SelectedMarket.Theaters.FirstOrDefault(t => t.Url == value);
+                    SelectedTheater = SelectedMarket.Cinemas.FirstOrDefault(t => t.Url == value);
                 }
             }
         }

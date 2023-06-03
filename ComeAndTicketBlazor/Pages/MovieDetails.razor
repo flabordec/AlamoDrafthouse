@@ -37,7 +37,7 @@ else
 
                     @foreach (var showTime in showTimes)
                     {
-                        <tr>
+                        <tr @key="showTime">
                             <td scope="row" class="col-md-4">@showTime.Date.Value.ToShortTimeString()</td>
                             <td class="col-md-4">@showTime.SeatsLeft</td>
                             <td class="col-md-1">

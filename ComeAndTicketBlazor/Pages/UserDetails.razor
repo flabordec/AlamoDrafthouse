@@ -26,7 +26,7 @@ else if (State.HasFlag(UserDetailsState.Initialized) && User != null)
                 <InputSelect id="countrySelect" @bind-Value="@UserMarketName" class="form-control col-sm-9">
                     @foreach (var market in Markets)
                     {
-                        <option value="@market.Name">@market.Name</option>
+                        <option @key="market" value="@market.Name">@market.Name</option>
                     }
                 </InputSelect>
             </div>
@@ -41,7 +41,7 @@ else if (State.HasFlag(UserDetailsState.Initialized) && User != null)
                 <ul class="col-sm-9 list-group">
                     @foreach (var movieToWatch in User.MovieTitlesToWatch)
                     {
-                        <li class="list-group-item">
+                        <li @key="movieToWatch" class="list-group-item">
                             @movieToWatch.Value
                             <span style="color: tomato" class="fas fa-minus-circle" @onclick="() => HandleRemoveMovieToWatch(movieToWatch)" />
                         </li>
@@ -58,7 +58,7 @@ else if (State.HasFlag(UserDetailsState.Initialized) && User != null)
                 <ul class="col-sm-9 list-group">
                     @foreach (var deviceNickname in User.DeviceNicknames)
                     {
-                        <li class="list-group-item">
+                        <li @key="deviceNickname" class="list-group-item">
                             @deviceNickname.Value
                             <span style="color: tomato" class="fas fa-minus-circle" @onclick="() => HandleRemoveDeviceNickname(deviceNickname)" />
                         </li>
