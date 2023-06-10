@@ -149,7 +149,6 @@ namespace MaguSoft.ComeAndTicket.Console
                     var marketName = marketNotificationConfiguration.Name;
                     var market = marketsByName[marketName];
                     HashSet<string> cinemaNamesToNotify = new HashSet<string>(marketNotificationConfiguration.Cinemas, StringComparer.CurrentCultureIgnoreCase);
-                    bool addedMessageForMarket = false;
 
                     var presentationsToNotify = new HashSet<Presentation>();
 
@@ -173,6 +172,7 @@ namespace MaguSoft.ComeAndTicket.Console
 
                     foreach (var presentation in presentationsToNotify)
                     {
+                        bool addedMessageForPresentation = false;
                         foreach (var session in presentation.Sessions)
                         {
                             if (Session.StringToTicketsSaleStatus(session.TicketStatus) != TicketsStatus.OnSale)
@@ -184,10 +184,21 @@ namespace MaguSoft.ComeAndTicket.Console
                             if (user.SessionsNotified.Contains(session))
                                 continue;
 
-                            if (!addedMessageForMarket)
-                                messageBuilder.AppendLine(market.Name);
-                            addedMessageForMarket = true;
-                                
+                            if (!addedMessageForPresentation)
+                            {
+                                string presentationTitle;
+                                if (presentation.SuperTitle != null)
+                                {
+                                    presentationTitle = $"{presentation.SuperTitle.Name} - {presentation.Show.Title}";
+                                }
+                                else
+                                {
+                                    presentationTitle = presentation.Show.Title;
+                                }
+                                messageBuilder.AppendLine(presentationTitle);
+                                addedMessageForPresentation = true;
+                            }
+
                             messageBuilder.AppendLine($" - {session.ShowTimeUtc.ToLocalTime()} (Buy: {session.TicketsUrl} )");
                             user.SessionsNotified.Add(session);
 
