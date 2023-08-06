@@ -43,18 +43,7 @@ namespace ComeAndTicketBlazor.Pages
             }
         }
 
-        public Cinema SelectedTheater { get; set; }
-        public string SelectedTheaterUrl
-        {
-            get => SelectedTheater?.Url ?? "<All>";
-            set
-            {
-                if (SelectedTheaterUrl != value)
-                {
-                    SelectedTheater = SelectedMarket.Cinemas.FirstOrDefault(t => t.Url == value);
-                }
-            }
-        }
+        public Cinema SelectedCinema { get; set; }
 
         public Movie SelectedMovie { get; set; }
         public string SelectedMovieTitle 
@@ -77,11 +66,11 @@ namespace ComeAndTicketBlazor.Pages
         }
 
         protected async Task SelectedMarketChangedAsync(ChangeEventArgs args) => 
-            await ReloadMoviesAsync((string)args.Value, SelectedTheaterUrl, MovieTitleFilter);
+            await ReloadMoviesAsync((string)args.Value, SelectedCinemaUrl, MovieTitleFilter);
         protected async Task SelectedTheaterChangedAsync(ChangeEventArgs args) =>
             await ReloadMoviesAsync(SelectedMarketName, (string)args.Value, MovieTitleFilter);
         protected async Task SelectedMovieTitleFilterChangedAsync(ChangeEventArgs args) =>
-            await ReloadMoviesAsync(SelectedMarketName, SelectedTheaterUrl, (string)args.Value);
+            await ReloadMoviesAsync(SelectedMarketName, SelectedCinemaUrl, (string)args.Value);
 
         protected async Task ReloadMoviesAsync(string marketName, string theaterUrl, string movieTitleFilter)
         {
@@ -89,12 +78,12 @@ namespace ComeAndTicketBlazor.Pages
             try
             {
                 SelectedMarketName = marketName;
-                SelectedTheaterUrl = theaterUrl;
+                SelectedCinemaUrl = theaterUrl;
                 MovieTitleFilter = movieTitleFilter;
                 
-                IEnumerable<Movie> movies = await DataService.GetMoviesForMarketAsync(SelectedMarket, SelectedTheater, null, MovieTitleFilter);
+                await DataService.GetMoviesForMarketAsync(SelectedMarket, SelectedCinema, null, MovieTitleFilter);
                 _movies.Clear();
-                _movies.UnionWith(movies);
+                _movies.UnionWith(SelectedMarket.Presentations);
             }
             finally
             {
@@ -117,9 +106,9 @@ namespace ComeAndTicketBlazor.Pages
                 Markets = await DataService.GetMarketsAsync();
                 
                 SelectedMarket = Markets.FirstOrDefault();
-                await ReloadMoviesAsync(SelectedMarketName, SelectedTheaterUrl, MovieTitleFilter);
+                await ReloadMoviesAsync(SelectedMarketName, SelectedCinemaUrl, MovieTitleFilter);
 
-                SelectedTheater = null;
+                SelectedCinema = null;
             }
             finally
             {

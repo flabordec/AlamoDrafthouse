@@ -58,9 +58,9 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         public async Task<List<Session>> GetSessionsFromDbAsync() => await Sessions.ToListAsync();
 
-        public async Task<IEnumerable<Market>> GetMarketsFromWeb(IEnumerable<string> marketNamesToUpdate)
+        public async Task<IEnumerable<Market>> GetMarketsFromWebAsync(IEnumerable<string> marketNamesToUpdate)
         {
-            IEnumerable<Market> marketsFromWeb = await ReadMarketsFromWebAsync();
+            IEnumerable<Market> marketsFromWeb = await GetMarketsFromWebAsync();
 
             // Calling ToList becuase we are returning the value, so the filtering only runs once.
             var marketNamesToUpdateSet = new HashSet<string>(marketNamesToUpdate, StringComparer.OrdinalIgnoreCase);
@@ -72,20 +72,22 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
             var cinemasByMarket = await Task.WhenAll(
                 from market in marketsToUpdate
-                select ReadCinemasFromWebAsync(market));
+                select GetCinemasFromWebAsync(market));
             var cinemas = cinemasByMarket.SelectMany(t => t);
 
             return marketsToUpdate;
         }
 
-        private async Task<IEnumerable<Market>> ReadMarketsFromWebAsync()
+        public async Task<IEnumerable<Market>> GetMarketsFromWebAsync()
         {
             _logger.Info("Reading markets from web");
             try
             {
-                JsonElement results = await InternetHelpers.GetPageJsonAsync<JsonElement>("https://drafthouse.com/s/mother/v1/page/cclamp/austin?useUnifiedSchedule=true");
+                JsonElement results = await InternetHelpers.GetPageJsonAsync<JsonElement>("https://drafthouse.com/s/mother/v1/page/cclamp");
                 JsonElement marketSummaries = results.GetProperty("data").GetProperty("marketSummaries");
                 var markets = marketSummaries.Deserialize<Market[]>();
+                if (markets == null)
+                    throw new InvalidOperationException("Could not deserialize markets from Alamo");
                 return markets;
             }
             catch (Exception ex)
@@ -95,11 +97,11 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             }
         }
 
-        private async Task<IEnumerable<Cinema>> ReadCinemasFromWebAsync(Market marketFromDb)
+        public async Task<IEnumerable<Cinema>> GetCinemasFromWebAsync(Market marketFromDb)
         {
             try
             {
-                return await InnerReadCinemasFromWebAsync(marketFromDb);
+                return await InnerGetCinemasFromWebAsync(marketFromDb);
             }
             catch (Exception ex)
             {
@@ -109,7 +111,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         }
 
-        private async Task<IEnumerable<Cinema>> InnerReadCinemasFromWebAsync(Market marketFromDb)
+        private async Task<IEnumerable<Cinema>> InnerGetCinemasFromWebAsync(Market marketFromDb)
         {
             _logger.Info("Reading cinemas for {Market} from web", marketFromDb.Name);
 
@@ -118,6 +120,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             JsonElement marketJson = dataJson.GetProperty("market");
             JsonElement cinemasJson = marketJson[0].GetProperty("cinemas");
             var cinemas = cinemasJson.Deserialize<Cinema[]>();
+            if (cinemas == null)
+                throw new InvalidOperationException("Could not deserialize cinemas from Alamo");
             foreach (var cinema in cinemas)
             {
                 marketFromDb.Cinemas.Add(cinema);
@@ -128,6 +132,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
             JsonElement presentationsJson = dataJson.GetProperty("presentations");
             var presentations = presentationsJson.Deserialize<Presentation[]>();
+            if (presentations == null)
+                throw new InvalidOperationException("Could not deserialize presentations from Alamo");
             foreach (var presentation in presentations)
             {
                 marketFromDb.Presentations.Add(presentation);
@@ -140,6 +146,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
             JsonElement sessionJson = dataJson.GetProperty("sessions");
             var sessions = sessionJson.Deserialize<Session[]>();
+            if (sessions == null)
+                throw new InvalidOperationException("Could not deserialize sessions from Alamo");
             foreach (var sessionInWeb in sessions)
             {
                 Session session;

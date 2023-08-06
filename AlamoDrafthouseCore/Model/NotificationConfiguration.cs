@@ -24,7 +24,9 @@ namespace MaguSoft.ComeAndTicket.Core.Model
     //            }
     //        },
     //        "Shows": [ "dungeons & dragons", "dungeons and dragons" ],
-    //        "After":  "2023-04-15"
+    //        "After":  "2023-04-15",
+    //        "Before": "2023-04-17",
+    //        "DayOfWeek": [ "Saturday", "Sunday" ]
     //    }
     //],
 
@@ -37,6 +39,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         public List<string> SuperTitles { get; } = new();
         public List<string> Shows { get; } = new();
         public DateOnly? After { get; set; }
+        public DateOnly? Before { get; set; }
+        public List<DayOfWeek> DayOfWeek { get; set; } = new();
     }
 
     public class MarketNotificationConfiguration

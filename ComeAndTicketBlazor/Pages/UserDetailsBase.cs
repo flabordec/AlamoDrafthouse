@@ -35,15 +35,7 @@ namespace ComeAndTicketBlazor.Pages
         public IEnumerable<Market> Markets { get; private set; }
 
         public User User { get; private set; }
-        public string UserMarketName
-        {
-            get => User?.HomeMarket?.Name; 
-            set
-            {
-                User.HomeMarket = Markets.FirstOrDefault(m => m.Name == value);
-            }
-        }
-        
+
         public string MovieTitleToWatch { get; set; }
         public string DeviceNickname { get; set; }
 
@@ -62,11 +54,6 @@ namespace ComeAndTicketBlazor.Pages
                     if (eMail != null)
                     {
                         User = await DataService.GetUserAsync(eMail.Value);
-                        Markets = await DataService.GetMarketsAsync();
-                        if (User.HomeMarket == null)
-                        {
-                            User.HomeMarket = Markets.FirstOrDefault();
-                        }
                     }
                 }
             }
@@ -86,26 +73,22 @@ namespace ComeAndTicketBlazor.Pages
 
         protected void HandleAddMovieToWatch()
         {
-            MovieTitleToWatch movieTitleToWatch = new MovieTitleToWatch(MovieTitleToWatch);
-            User.MovieTitlesToWatch.Add(movieTitleToWatch);
-            MovieTitleToWatch = string.Empty;
+            // TODO magus Do this
         }
 
-        protected void HandleRemoveMovieToWatch(MovieTitleToWatch movieTitleToWatch)
+        protected void HandleRemoveMovieToWatch(string movieTitleToWatch)
         {
-            User.MovieTitlesToWatch.Remove(movieTitleToWatch);
+            // TODO magus Do this
         }
 
         protected void HandleAddDeviceNickname()
         {
-            DeviceNickname deviceNickname = new DeviceNickname(DeviceNickname);
-            User.DeviceNicknames.Add(deviceNickname);
-            DeviceNickname = string.Empty;
+            // TODO magus Do this
         }
 
-        protected void HandleRemoveDeviceNickname(DeviceNickname deviceNickname)
+        protected void HandleRemoveDeviceNickname(string deviceNickname)
         {
-            User.DeviceNicknames.Remove(deviceNickname);
+            // TODO magus Do this
         }
     }
 }

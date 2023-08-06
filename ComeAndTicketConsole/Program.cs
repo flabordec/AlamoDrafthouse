@@ -23,6 +23,7 @@ using System.Security.Cryptography;
 using MaguSoft.ComeAndTicket.Core.Migrations;
 using MaguSoft.ComeAndTicket.Core.ExtensionMethods;
 using AutoMapper;
+using static System.Collections.Specialized.BitVector32;
 
 namespace MaguSoft.ComeAndTicket.Console
 {
@@ -35,9 +36,9 @@ namespace MaguSoft.ComeAndTicket.Console
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
 #if DEBUG
-                .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
+                .AddJsonFile("appsettings.Development.json", optional: false, reloadOnChange: true)
 #else
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
 #endif
                 .AddUserSecrets(typeof(Program).Assembly, optional: true)
                 .AddEnvironmentVariables();
@@ -124,7 +125,7 @@ namespace MaguSoft.ComeAndTicket.Console
                 select m.Name;
 
             _logger.Info("Updating Drafthouse data from web");
-            var markets = await context.GetMarketsFromWeb(marketsToUpdate);
+            var markets = await context.GetMarketsFromWebAsync(marketsToUpdate);
 
             _logger.Info("Pushing notifications");
             await PushMoviesAsync(user, markets, notifications, pushbulletApi);
@@ -141,7 +142,6 @@ namespace MaguSoft.ComeAndTicket.Console
             bool newShowsAvailable = false;
 
             var messageBuilder = new StringBuilder();
-            messageBuilder.AppendLine(Environment.MachineName);
             foreach (var notification in notifications)
             {
                 foreach (var marketNotificationConfiguration in notification.Markets)
@@ -170,19 +170,39 @@ namespace MaguSoft.ComeAndTicket.Console
                         presentationsToNotify.UnionWith(presentationsToNotifyBySuperTitle);
                     }
 
-                    foreach (var presentation in presentationsToNotify)
+                    var potentialNotificationsByCinema = (
+                        from presentation in presentationsToNotify
+                        from session in presentation.Sessions
+                        select (presentation, session)
+                        ).GroupBy(s => s.session.Cinema.Name);
+
+                    foreach (var potentialNotificationPair in potentialNotificationsByCinema)
                     {
+                        bool addedMessageForCinema = false;
+                        var cinemaName = potentialNotificationPair.Key;
                         bool addedMessageForPresentation = false;
-                        foreach (var session in presentation.Sessions)
+                        foreach (var potentialNotification in potentialNotificationPair)
                         {
+                            var presentation = potentialNotification.presentation;
+                            var session = potentialNotification.session;
+
                             if (Session.StringToTicketsSaleStatus(session.TicketStatus) != TicketsStatus.OnSale)
                                 continue;
                             if (notification.After != null && session.ShowTimeUtc < notification.After.Value.ToDateTime(new TimeOnly(0, 0)))
+                                continue;
+                            if (notification.Before != null && session.ShowTimeUtc > notification.Before.Value.ToDateTime(new TimeOnly(0, 0)))
+                                continue;
+                            if (notification.DayOfWeek.Any() && !notification.DayOfWeek.Contains(session.ShowTimeUtc.DayOfWeek))
                                 continue;
                             if (!cinemaNamesToNotify.Contains("All") && !cinemaNamesToNotify.Contains(session.Cinema.Name))
                                 continue;
                             if (user.SessionsNotified.Contains(session))
                                 continue;
+
+                            if (!addedMessageForCinema)
+                            {
+                                messageBuilder.AppendLine(cinemaName);
+                            }
 
                             if (!addedMessageForPresentation)
                             {
@@ -195,11 +215,11 @@ namespace MaguSoft.ComeAndTicket.Console
                                 {
                                     presentationTitle = presentation.Show.Title;
                                 }
-                                messageBuilder.AppendLine(presentationTitle);
+                                messageBuilder.AppendLine($" - {presentationTitle}");
                                 addedMessageForPresentation = true;
                             }
 
-                            messageBuilder.AppendLine($" - {session.ShowTimeUtc.ToLocalTime()} (Buy: {session.TicketsUrl} )");
+                            messageBuilder.AppendLine($"     - {session.ShowTimeUtc.ToLocalTime()} (Buy: {session.TicketsUrl} )");
                             user.SessionsNotified.Add(session);
 
                             newShowsAvailable = true;

@@ -12,8 +12,7 @@ namespace ComeAndTicketBlazor.Data
     {
         Task InitializeAsync();
         Task<IEnumerable<Market>> GetMarketsAsync();
-        Task<IEnumerable<Movie>> GetMoviesForMarketAsync(Market market, Cinema theater, string sortOrder, string titleFilter);
-        Task<IEnumerable<Presentation>> GetShowTimesAsync(string movieTitle, string marketName, string theaterName);
+        Task GetMoviesForMarketAsync(Market market);
         Task<User> GetUserAsync(string userName);
         Task<int> Save();
     }
@@ -30,8 +29,20 @@ namespace ComeAndTicketBlazor.Data
 
         public async Task InitializeAsync()
         {
-            // await ComeAndTicketContext.UpdateDatabaseFromWebAsync(_dbContext);
             await _dbContext.Database.EnsureCreatedAsync();
+        }
+
+        public async Task ExecuteActionInContext(Func<Task> action)
+        {
+            try
+            {
+                await _dbContextSemaphore.WaitAsync();
+                await action();
+            }
+            finally
+            {
+                _dbContextSemaphore.Release();
+            }
         }
 
         public async Task<T> ExecuteActionInContext<T>(Func<Task<T>> action)
@@ -51,112 +62,33 @@ namespace ComeAndTicketBlazor.Data
             await ExecuteActionInContext(() => InnerGetMarketsAsync());
         private async Task<IEnumerable<Market>> InnerGetMarketsAsync()
         {
-            return await 
-                _dbContext
-                .Markets
-                    .Include(m => m.Cinemas)
-                .ToListAsync();
+            return await _dbContext.GetMarketsFromWebAsync();
         }
 
-        public async Task<IEnumerable<Movie>> GetMoviesForMarketAsync(Market market, Cinema theater, string sortOrder, string titleFilter) => 
-            await ExecuteActionInContext(() => InnerGetMoviesForMarketAsync(market, theater, sortOrder, titleFilter));
-        private async Task<IEnumerable<Movie>> InnerGetMoviesForMarketAsync(Market market, Cinema theater, string sortOrder, string titleFilter)
+        public async Task GetMoviesForMarketAsync(Market market) => 
+            await ExecuteActionInContext(() => InnerGetMoviesForMarketAsync(market));
+        private async Task InnerGetMoviesForMarketAsync(Market market)
         {
-            IQueryable<Movie> query = _dbContext.Movies
-                .Include(m => m.ShowTimes);
-            switch (sortOrder)
-            {
-                case null:
-                case "title":
-                    query = query.OrderBy(m => m.Title);
-                    break;
-                case "title_desc":
-                    query = query.OrderByDescending(m => m.Title);
-                    break;
-            }
-
-            query = query.Where(m =>
-                m.ShowTimes.Any(st =>
-                    st.Date >= DateTime.UtcNow &&
-                    st.SeatsLeft > 0
-                ));
-            
-            if (market != null)
-            {
-                query = query.Where(m =>
-                    m.ShowTimes.Any(st =>
-                        st.Theater.Market == market));
-            }
-
-            if (theater != null)
-            {
-                query = query.Where(m =>
-                    m.ShowTimes.Any(st =>
-                        st.Theater == theater));
-            }
-
-            IEnumerable<Movie> movies;
-            IEnumerable<Movie> moviesPreFilter = await query.ToListAsync();
-            if (!string.IsNullOrEmpty(titleFilter))
-            {
-                movies = moviesPreFilter.Where(m => m.Title.Contains(titleFilter, StringComparison.CurrentCultureIgnoreCase)).ToList();
-            }
-            else
-            {
-                movies = moviesPreFilter;
-            }
-            return movies;
-        }
-
-        public async Task<IEnumerable<Presentation>> GetShowTimesAsync(string movieTitle, string marketName, string theaterName) =>
-            await ExecuteActionInContext(() => InnerGetShowTimesAsync(movieTitle, marketName, theaterName));
-        private async Task<IEnumerable<Presentation>> InnerGetShowTimesAsync(string movieTitle, string marketName, string theaterName)
-        {
-            IQueryable<Presentation> query =
-                _dbContext.ShowTimes
-                .Include(st => st.Theater)
-                    .ThenInclude(t => t.Market);
-            query = query
-                .Where(st => st.MovieTitle == movieTitle)
-                .Where(st => st.Date >= DateTime.UtcNow);
-            
-            if (!string.IsNullOrEmpty(marketName))
-            {
-                query = query.Where(st => st.Theater.Market.Name == marketName);
-            }
-
-            if (!string.IsNullOrEmpty(theaterName))
-            {
-                query = query.Where(st => st.Theater.Name == theaterName);
-            }
-
-            var showTimes = await query.ToListAsync();
-            return showTimes;
+            await _dbContext.GetCinemasFromWebAsync(market);
         }
 
         public async Task<User> GetUserAsync(string userName) =>
             await ExecuteActionInContext(() => InnerGetUserAsync(userName));
         private async Task<User> InnerGetUserAsync(string userName)
         {
-            User user = new User(userName);
-            var dbUser = await _dbContext.Users
-                    .Include(u => u.DeviceNicknames)
-                    .Include(u => u.MovieTitlesToWatch)
-                .Where(u => u.EMail == user.EMail)
-                .FirstOrDefaultAsync();
+            var dbUser = await _dbContext.GetUserFromDbAsync(userName);
 
             if (dbUser == null)
             {
-                dbUser = user;
-                _dbContext.Users.Add(user);
+                dbUser = new User() { UserName = userName };
+                _dbContext.Users.Add(dbUser);
                 await _dbContext.SaveChangesAsync();
             }
 
             return dbUser;
         }
 
-        public async Task<int> Save() =>
-            await ExecuteActionInContext(() => InnerSave());
+        public async Task<int> Save() => await ExecuteActionInContext(() => InnerSave());
         private async Task<int> InnerSave()
         {
             return await _dbContext.SaveChangesAsync();

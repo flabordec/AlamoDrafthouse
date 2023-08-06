@@ -34,11 +34,9 @@ namespace ComeAndTicketBlazor
             services.AddRazorPages();
             services.AddServerSideBlazor();
 
-            IConfigurationSection dbAuthSection = Configuration.GetSection("Authentication:Database");
-            string userName = dbAuthSection["UserName"];
-            string password = dbAuthSection["Password"];
-            var context = new ComeAndTicketContext(userName, password);
-            services.AddSingleton<ComeAndTicketContext>(context);
+            bool useInMemoryDatabase = Configuration.GetValue<bool>("UseInMemoryDatabase");
+            var context = new ComeAndTicketContext(useInMemoryDatabase);
+            services.AddSingleton(context);
 
             services.AddSingleton<IComeAndTicketDataService, ComeAndTicketDataService>();
 
@@ -63,7 +61,7 @@ namespace ComeAndTicketBlazor
             services.AddScoped<HttpClient>();
 
             // Pass settings to other components
-            services.AddSingleton<IConfiguration>(Configuration);
+            services.AddSingleton(Configuration);
 
             services.AddResponseCompression();
         }
