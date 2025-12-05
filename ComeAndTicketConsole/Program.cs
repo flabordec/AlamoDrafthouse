@@ -221,11 +221,14 @@ namespace MaguSoft.ComeAndTicket.Console
 
                                 if (!addedMessageForCinema)
                                 {
+                                    messageBuilder.AppendLine("=====================");
                                     messageBuilder.AppendLine(cinemaName);
+                                    addedMessageForCinema = true;
                                 }
 
                                 if (!addedMessageForPresentation)
                                 {
+                                    messageBuilder.AppendLine("---------------------");
                                     messageBuilder.AppendLine($" - {presentationTitle}");
                                     addedMessageForPresentation = true;
                                 }
