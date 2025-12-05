@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>MaguSoft.ComeAndTicket.Console</RootNamespace>
     <UserSecretsId>8e048337-f50e-490d-b2a5-5b87d81786fb</UserSecretsId>
     <Nullable>enable</Nullable>

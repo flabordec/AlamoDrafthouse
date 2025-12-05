@@ -182,7 +182,7 @@ namespace MaguSoft.ComeAndTicket.Console
                         bool addedMessageForCinema = false;
                         var cinemaName = potentialNotificationPairs.Key;
 
-                        var potentialNotificationsByPresentationTitle = potentialNotificationPairs.GroupBy(p => 
+                        var potentialNotificationsByPresentationTitle = potentialNotificationPairs.GroupBy(p =>
                             {
                                 var presentation = p.presentation;
                                 string presentationTitle;
@@ -230,7 +230,9 @@ namespace MaguSoft.ComeAndTicket.Console
                                     addedMessageForPresentation = true;
                                 }
 
-                                messageBuilder.AppendLine($"     - {session.ShowTimeUtc.ToLocalTime()} (Buy: {session.TicketsUrl} )");
+                                var showTimeLocal = session.ShowTimeUtc.ToLocalTime();
+                                var showTimeLocalString = showTimeLocal.ToString("ddd d MMM h:mm tt");
+                                messageBuilder.AppendLine($"     - {showTimeLocalString} (Buy: {session.TicketsUrl} )");
                                 user.SessionsNotified.Add(session);
 
                                 newShowsAvailable = true;
