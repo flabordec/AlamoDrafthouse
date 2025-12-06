@@ -101,7 +101,7 @@ namespace MaguSoft.ComeAndTicket.Console
                 FileName = "output.log",
                 ArchiveEvery = NLog.Targets.FileArchivePeriod.Day,
                 MaxArchiveFiles = 30,
-                ArchiveNumbering = NLog.Targets.ArchiveNumberingMode.DateAndSequence,
+                ArchiveSuffixFormat = "{1:yyyyMMdd}_{0:00}",
                 ArchiveAboveSize = 512 * 1024, // 512 KB
             };
             var logConsole = new NLog.Targets.ColoredConsoleTarget("logconsole")

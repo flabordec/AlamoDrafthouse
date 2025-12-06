@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,10 +21,11 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         private static IMapper ConfigureMappings()
         {
+            ILoggerFactory loggerFactory = new LoggerFactory();
             var config = new MapperConfiguration(cfg =>
             {
                 cfg.CreateMap<Session, Session>();
-            });
+            }, loggerFactory);
             return config.CreateMapper();
         }
     }
