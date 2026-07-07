@@ -22,7 +22,6 @@ using System.Reflection;
 using System.Security.Cryptography;
 using MaguSoft.ComeAndTicket.Core.Migrations;
 using MaguSoft.ComeAndTicket.Core.ExtensionMethods;
-using AutoMapper;
 using static System.Collections.Specialized.BitVector32;
 
 namespace MaguSoft.ComeAndTicket.Console
