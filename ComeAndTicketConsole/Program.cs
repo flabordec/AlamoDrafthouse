@@ -136,7 +136,7 @@ namespace MaguSoft.ComeAndTicket.Console
 
         private static async Task PushMoviesAsync(User user, IEnumerable<Market> markets, IEnumerable<NotificationConfiguration> notifications, Pushbullet pushbulletApi)
         {
-            var marketsByName = markets.ToDictionary(m => m.Name, StringComparer.CurrentCultureIgnoreCase);
+            var marketsByName = markets.ToDictionary(m => m.Name!, StringComparer.CurrentCultureIgnoreCase);
 
             bool newShowsAvailable = false;
 
@@ -146,6 +146,10 @@ namespace MaguSoft.ComeAndTicket.Console
                 foreach (var marketNotificationConfiguration in notification.Markets)
                 {
                     var marketName = marketNotificationConfiguration.Name;
+                    if (marketName is null)
+                    {
+                        throw new ArgumentException("The market name cannot be null");
+                    }
                     var market = marketsByName[marketName];
                     HashSet<string> cinemaNamesToNotify = new HashSet<string>(marketNotificationConfiguration.Cinemas, StringComparer.CurrentCultureIgnoreCase);
 
@@ -155,7 +159,7 @@ namespace MaguSoft.ComeAndTicket.Console
                     {
                         var presentationsToNotifyByTitle =
                             from p in market.Presentations
-                            where p.Show.Title.Contains(showTitle, StringComparison.CurrentCultureIgnoreCase)
+                            where p.Show!.Title!.Contains(showTitle, StringComparison.CurrentCultureIgnoreCase)
                             select p;
                         presentationsToNotify.UnionWith(presentationsToNotifyByTitle);
                     }
@@ -164,7 +168,7 @@ namespace MaguSoft.ComeAndTicket.Console
                         var presentationsToNotifyBySuperTitle =
                             from p in market.Presentations
                             where p.SuperTitle != null
-                            where p.SuperTitle.Name.Contains(superTitle, StringComparison.CurrentCultureIgnoreCase)
+                            where p.SuperTitle!.Name!.Contains(superTitle, StringComparison.CurrentCultureIgnoreCase)
                             select p;
                         presentationsToNotify.UnionWith(presentationsToNotifyBySuperTitle);
                     }
@@ -174,7 +178,7 @@ namespace MaguSoft.ComeAndTicket.Console
                         from session in presentation.Sessions
                         select (presentation, session)
                         )
-                        .GroupBy(s => s.session.Cinema.Name);
+                        .GroupBy(s => s.session.Cinema!.Name);
 
                     foreach (var potentialNotificationPairs in potentialNotificationsByCinema)
                     {
@@ -187,11 +191,11 @@ namespace MaguSoft.ComeAndTicket.Console
                                 string presentationTitle;
                                 if (presentation.SuperTitle != null)
                                 {
-                                    presentationTitle = $"{presentation.SuperTitle.Name} - {presentation.Show.Title}";
+                                    presentationTitle = $"{presentation.SuperTitle.Name} - {presentation.Show!.Title}";
                                 }
                                 else
                                 {
-                                    presentationTitle = presentation.Show.Title;
+                                    presentationTitle = presentation!.Show!.Title!;
                                 }
                                 return presentationTitle;
                             });
@@ -205,7 +209,7 @@ namespace MaguSoft.ComeAndTicket.Console
                                 var presentation = potentialNotification.presentation;
                                 var session = potentialNotification.session;
 
-                                if (Session.StringToTicketsSaleStatus(session.TicketStatus) != TicketsStatus.OnSale)
+                                if (Session.StringToTicketsSaleStatus(session.TicketStatus!) != TicketsStatus.OnSale)
                                     continue;
                                 if (notification.After != null && session.ShowTimeUtc < notification.After.Value.ToDateTime(new TimeOnly(0, 0)))
                                     continue;
@@ -213,7 +217,7 @@ namespace MaguSoft.ComeAndTicket.Console
                                     continue;
                                 if (notification.DayOfWeek.Any() && !notification.DayOfWeek.Contains(session.ShowTimeUtc.DayOfWeek))
                                     continue;
-                                if (!cinemaNamesToNotify.Contains("All") && !cinemaNamesToNotify.Contains(session.Cinema.Name))
+                                if (!cinemaNamesToNotify.Contains("All") && !cinemaNamesToNotify.Contains(session.Cinema!.Name!))
                                     continue;
                                 if (user.SessionsNotified.Contains(session))
                                     continue;

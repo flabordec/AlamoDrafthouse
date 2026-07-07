@@ -22,13 +22,13 @@ namespace MaguSoft.ComeAndTicket.Core.Model
     public class Session
     {
         [Key, Required(ErrorMessage = "You must specify an ID"), JsonPropertyName("sessionId")]
-        public string Id { get; set; }
+        public string? Id { get; set; }
         [JsonPropertyName("status")]
-        public string TicketStatus { get; set; }
+        public string? TicketStatus { get; set; }
         [JsonPropertyName("cinemaId")]
-        public string CinemaId { get; set; }
+        public string? CinemaId { get; set; }
         [JsonPropertyName("presentationSlug")]
-        public string PresentationSlug { get; set; }
+        public string? PresentationSlug { get; set; }
         [JsonPropertyName("showTimeUtc")]
         public DateTime ShowTimeUtc { get; set; }
         [JsonPropertyName("isHidden")]
@@ -37,9 +37,9 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         public int Tickets { get; set; }
 
         [NotMapped]
-        public Cinema Cinema { get; set; }
+        public Cinema? Cinema { get; set; }
         [NotMapped]
-        public Presentation Presentation { get; set; }
+        public Presentation? Presentation { get; set; }
 
         public string TicketsUrl => $"https://drafthouse.com/austin/show/{PresentationSlug}?cinemaId={CinemaId}&sessionId={Id}";
 

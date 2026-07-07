@@ -56,7 +56,7 @@ namespace MaguSoft.ComeAndTicket.Core.Helpers
                     response.StatusCode == HttpStatusCode.RedirectMethod ||
                     response.StatusCode == HttpStatusCode.TemporaryRedirect)
                 {
-                    return await GetPageContentAsync(response.Headers.Location.AbsoluteUri);
+                    return await GetPageContentAsync(response.Headers.Location!.AbsoluteUri);
                 }
                 else
                 {
@@ -85,11 +85,15 @@ namespace MaguSoft.ComeAndTicket.Core.Helpers
                     response.StatusCode == HttpStatusCode.RedirectMethod ||
                     response.StatusCode == HttpStatusCode.TemporaryRedirect)
                 {
-                    return await GetPageJsonAsync<T>(response.Headers.Location.AbsoluteUri);
+                    return await GetPageJsonAsync<T>(response.Headers.Location!.AbsoluteUri);
                 }
                 else
                 {
-                    T jsonObject = await response.Content.ReadFromJsonAsync<T>();
+                    T? jsonObject = await response.Content.ReadFromJsonAsync<T>();
+                    if (jsonObject is null)
+                    {
+                        throw new Exception("Could not read JSON response");
+                    }
                     return jsonObject;
                 }
             }

@@ -12,8 +12,8 @@ namespace MaguSoft.ComeAndTicket.Core.ExtensionMethods
     {
         public static bool AttributeExistsAndHasValue(this HtmlNode node, string attributeName, params string[] expectedValues)
         {
-            string attributeValue = node.Attributes[attributeName]?.Value;
-            if (attributeValue != null)
+            string? attributeValue = node.Attributes[attributeName]?.Value;
+            if (attributeValue is not null)
             {
                 foreach (string expectedValue in expectedValues)
                 {
@@ -38,8 +38,8 @@ namespace MaguSoft.ComeAndTicket.Core.ExtensionMethods
     public static class EnumerableExtensionMethods
     {
         public static Dictionary<TKey, List<TSource>> ToDictionaryList<TSource, TKey>(
-            this IEnumerable<TSource> source, 
-            Func<TSource, TKey> keySelector, 
+            this IEnumerable<TSource> source,
+            Func<TSource, TKey> keySelector,
             IEqualityComparer<TKey>? comparer) where TKey : notnull
         {
             if (source == null)

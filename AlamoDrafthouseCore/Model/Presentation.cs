@@ -17,9 +17,9 @@ namespace MaguSoft.ComeAndTicket.Core.Model
     public class SuperTitle
     {
         [Key, JsonPropertyName("slug"), Required(ErrorMessage = "You must specify a slug")]
-        public string Slug { get; set; }
+        public string? Slug { get; set; }
         [JsonPropertyName("superTitle")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
     }
 
     public class Presentation
@@ -27,15 +27,15 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         [Key, JsonPropertyName("slug"), Required(ErrorMessage = "You must specify a slug")]
-        public string Slug { get; set; }
+        public string? Slug { get; set; }
         [JsonPropertyName("show")]
-        public Show Show { get; set; }
+        public Show? Show { get; set; }
         [Required(ErrorMessage = "You must specify a market")]
-        public Market Market { get; set; }
+        public Market? Market { get; set; }
 
         public HashSet<Session> Sessions { get; } = new();
         [JsonPropertyName("superTitle")]
-        public SuperTitle SuperTitle { get; set; }
+        public SuperTitle? SuperTitle { get; set; }
     }
 
     public class Show
@@ -43,8 +43,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         [Key, JsonPropertyName("slug"), Required(ErrorMessage = "You must specify a slug")]
-        public string Slug { get; set; }
+        public string? Slug { get; set; }
         [JsonPropertyName("title"), Required(ErrorMessage = "You must specify a title")]
-        public string Title { get; set; }
+        public string? Title { get; set; }
     }
 }

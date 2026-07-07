@@ -49,7 +49,15 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         public int GetHashCode([DisallowNull] Cinema obj)
         {
-            return _comparer.GetHashCode(obj.Name);
+            if (obj.Name is not null)
+            {
+                return _comparer.GetHashCode(obj.Name);
+            }
+            else
+            {
+                return 0;
+            }
+
         }
     }
 
@@ -58,18 +66,16 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         [Key, Required(ErrorMessage = "You must specify an ID"), JsonPropertyName("id")]
-        public string Id { get; set; }
+        public string? Id { get; set; }
         [Required(ErrorMessage = "You must specify a name"), JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
         [Required(ErrorMessage = "You must specify a slug"), JsonPropertyName("slug")]
-        public string Slug { get; set; }
+        public string? Slug { get; set; }
 
 
 
-        public Market Market { get; set; }
-        public HashSet<Presentation> Presentations { get; } = new ();
-        public HashSet<Session> Sessions { get; } = new ();
-
-        public Cinema() { }
+        public Market? Market { get; set; }
+        public HashSet<Presentation> Presentations { get; } = new();
+        public HashSet<Session> Sessions { get; } = new();
     }
 }

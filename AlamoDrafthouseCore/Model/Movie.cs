@@ -54,13 +54,14 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         public Movie()
         {
-
+            Title = string.Empty;
+            ShowTimes = new();
         }
 
         public Movie(string title)
         {
             Title = title;
-            ShowTimes = new HashSet<Presentation>();
+            ShowTimes = new();
         }
 
         //public bool Equals([AllowNull] Movie other) => MovieComparer.TitleCurrentCultureIgnoreCase.Equals(this, other);

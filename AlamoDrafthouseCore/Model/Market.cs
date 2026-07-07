@@ -19,17 +19,17 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         private static readonly NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         [JsonPropertyName("id")]
-        public string Id { get; set; }
+        public string? Id { get; set; }
         [Required(ErrorMessage = "You must specify a Slug"), JsonPropertyName("slug")]
-        public string Slug { get; set; }
+        public string? Slug { get; set; }
         [Required(ErrorMessage = "You must specify a Name"), JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public string MarketUrl => $"https://drafthouse.com/s/mother/v2/schedule/market/{Slug}";
 
 
-        public HashSet<Cinema> Cinemas { get; } = new ();
-        public HashSet<Presentation> Presentations { get; } = new ();
+        public HashSet<Cinema> Cinemas { get; } = new();
+        public HashSet<Presentation> Presentations { get; } = new();
     }
 }

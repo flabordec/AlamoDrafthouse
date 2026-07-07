@@ -53,7 +53,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         public async Task<User?> GetUserFromDbAsync(string usernName) =>
             await Users
                 .Include(u => u.SessionsNotified)
-                .Where(u => u.UserName.Equals(usernName))
+                .Where(u => u.UserName != null && u.UserName.Equals(usernName))
                 .SingleOrDefaultAsync();
 
         public async Task<List<Session>> GetSessionsFromDbAsync() => await Sessions.ToListAsync();
@@ -66,7 +66,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             var marketNamesToUpdateSet = new HashSet<string>(marketNamesToUpdate, StringComparer.OrdinalIgnoreCase);
             IEnumerable<Market> marketsToUpdate = (
                 from market in marketsFromWeb
-                where marketNamesToUpdateSet.Contains(market.Name)
+                where market.Name != null && marketNamesToUpdateSet.Contains(market.Name)
                 select market
                 ).ToList();
 
@@ -127,7 +127,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                 marketFromDb.Cinemas.Add(cinema);
                 cinema.Market = marketFromDb;
             }
-            var cinemasById = cinemas.ToDictionary(c => c.Id);
+            var cinemasById = cinemas.ToDictionary(c => c.Id ?? string.Empty);
 
 
             JsonElement presentationsJson = dataJson.GetProperty("presentations");
@@ -139,10 +139,10 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                 marketFromDb.Presentations.Add(presentation);
                 presentation.Market = marketFromDb;
             }
-            var presentationsBySlug = presentations.ToDictionary(p => p.Slug);
+            var presentationsBySlug = presentations.ToDictionary(p => p.Slug ?? string.Empty);
 
             var sessionsInDb = await GetSessionsFromDbAsync();
-            var sessionsInDbById = sessionsInDb.ToDictionary(s => s.Id);
+            var sessionsInDbById = sessionsInDb.ToDictionary(s => s.Id ?? string.Empty);
 
             JsonElement sessionJson = dataJson.GetProperty("sessions");
             var sessions = sessionJson.Deserialize<Session[]>();
@@ -151,7 +151,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
             foreach (var sessionInWeb in sessions)
             {
                 Session session;
-                if (sessionsInDbById.TryGetValue(sessionInWeb.Id, out Session sessionInDb))
+                if (sessionsInDbById.TryGetValue(sessionInWeb.Id ?? string.Empty, out Session? sessionInDb))
                 {
                     session = sessionInDb;
                 }
@@ -160,11 +160,13 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                     session = sessionInWeb;
                 }
 
-                var cinema = cinemasById[session.CinemaId];
+                var cinemaId = session.CinemaId ?? string.Empty;
+                var cinema = cinemasById[cinemaId];
                 cinema.Sessions.Add(session);
                 session.Cinema = cinema;
 
-                var presentation = presentationsBySlug[session.PresentationSlug];
+                var presentationSlug = session.PresentationSlug ?? string.Empty;
+                var presentation = presentationsBySlug[presentationSlug];
                 presentation.Sessions.Add(session);
                 session.Presentation = presentation;
 

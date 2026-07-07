@@ -20,7 +20,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
     {
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        public string UserName { get; set; }
+        public string? UserName { get; set; }
         public HashSet<Session> SessionsNotified { get; } = new();
     }
 }
