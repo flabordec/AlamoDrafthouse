@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketConsole", "Com
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PushbulletDotNet", "PushbulletDotNet\PushbulletDotNet.csproj", "{F326FB67-7EEB-474A-8EBD-4D6F0217663E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComeAndTicketBlazor", "ComeAndTicketBlazor\ComeAndTicketBlazor.csproj", "{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F326FB67-7EEB-474A-8EBD-4D6F0217663E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C26A92E7-C8EB-4E3C-B58E-AC31D168EAAA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

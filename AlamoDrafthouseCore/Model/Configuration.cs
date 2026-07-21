@@ -20,6 +20,8 @@ namespace MaguSoft.ComeAndTicket.Core.Model
 
         public Configuration()
         {
+            Name = string.Empty;
+            Value = string.Empty;
         }
     }
 }

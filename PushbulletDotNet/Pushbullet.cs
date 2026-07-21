@@ -33,10 +33,19 @@ namespace PushbulletDotNet
 
         public static Device FromJToken(JToken device)
         {
-            return new Device(
-                (string)device["iden"],
-                (string)device["nickname"],
-                (bool)device["active"]);
+            if (device == null) 
+                throw new ArgumentNullException(nameof(device));
+
+            string? iden = (string?)device["iden"];
+            string? nickname = (string?)device["nickname"];
+            bool? active = (bool?)device["active"];
+            if (iden == null)
+                throw new NullReferenceException(nameof(iden));
+            if (nickname == null)
+                throw new NullReferenceException(nameof(nickname));
+            if (active == null)
+                throw new NullReferenceException(nameof(active));
+            return new Device(iden, nickname, active ?? false);
         }
     }
 
@@ -72,7 +81,7 @@ namespace PushbulletDotNet
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
         private readonly string _authenticationToken;
 
-        private IDevicesList _devices;
+        private IDevicesList? _devices;
 
 
         public Pushbullet(string authenticationToken)
@@ -136,16 +145,16 @@ namespace PushbulletDotNet
             await Task.WhenAll(tasks);
         }
 
-        public async Task PushNoteAsync(string title, string noteBody, IDevice device)
+        public async Task PushNoteAsync(string title, string noteBody, IDevice? device)
         {
-            await PushNoteAsync(title, noteBody, device.Id);
+            await PushNoteAsync(title, noteBody, device?.Id);
         }
 
-        public async Task PushNoteAsync(string title, string noteBody, string deviceId)
+        public async Task PushNoteAsync(string title, string noteBody, string? deviceId)
         {
             await PushbulletPushAsync(
                 "v2/pushes",
-                new Dictionary<string, string>()
+                new Dictionary<string, string?>()
                 {
                     ["type"] = "note",
                     ["title"] = title,
@@ -174,7 +183,7 @@ namespace PushbulletDotNet
             return responseObject;
         }
 
-        public async ValueTask<JObject> PushbulletPushAsync(string method, IReadOnlyDictionary<string, string> parameters)
+        public async ValueTask<JObject> PushbulletPushAsync(string method, IReadOnlyDictionary<string, string?> parameters)
         {
             var client = new HttpClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _authenticationToken);
