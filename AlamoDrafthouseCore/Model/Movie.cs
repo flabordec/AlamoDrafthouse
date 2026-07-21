@@ -50,17 +50,18 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         [Required(ErrorMessage = "You must specify a title"), Key, DatabaseGenerated(DatabaseGeneratedOption.None)]
         public string Title { get; set; }
 
-        public HashSet<ShowTime> ShowTimes { get; set; }
+        public HashSet<Presentation> ShowTimes { get; set; }
 
         public Movie()
         {
-
+            Title = string.Empty;
+            ShowTimes = new();
         }
 
         public Movie(string title)
         {
             Title = title;
-            ShowTimes = new HashSet<ShowTime>();
+            ShowTimes = new();
         }
 
         //public bool Equals([AllowNull] Movie other) => MovieComparer.TitleCurrentCultureIgnoreCase.Equals(this, other);

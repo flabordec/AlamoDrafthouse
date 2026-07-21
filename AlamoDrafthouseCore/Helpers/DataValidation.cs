@@ -38,16 +38,16 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                 if (!result)
                 {
                     var validationResult = results.First();
-                    error = validationResult.ErrorMessage;
+                    error = validationResult.ErrorMessage ?? string.Empty;
                 }
                 return error;
             }
         }
 
-        private object GetValue(string propertyName)
+        private object? GetValue(string propertyName)
         {
-            PropertyInfo propInfo = GetType().GetProperty(propertyName);
-            return propInfo.GetValue(this);
+            PropertyInfo? propInfo = GetType()?.GetProperty(propertyName);
+            return propInfo?.GetValue(this);
         }
     }
 
@@ -62,7 +62,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         public IsTrueAttribute(Func<string> errorMessageAccessor)
             : base(errorMessageAccessor) { }
 
-        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+        protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
         {
             if (value is bool?)
             {
