@@ -166,11 +166,17 @@ namespace MaguSoft.ComeAndTicket.Core.Model
                 session.Cinema = cinema;
 
                 var presentationSlug = session.PresentationSlug ?? string.Empty;
-                var presentation = presentationsBySlug[presentationSlug];
-                presentation.Sessions.Add(session);
-                session.Presentation = presentation;
+                if (presentationsBySlug.TryGetValue(presentationSlug, out var presentation))
+                {
+                    presentation.Sessions.Add(session);
+                    session.Presentation = presentation;
 
-                cinema.Presentations.Add(presentation);
+                    cinema.Presentations.Add(presentation);
+                }
+                else
+                {
+                    _logger.Warn("Could not find presentation for session {SessionId} with slug {PresentationSlug}", session.Id, presentationSlug); 
+                }
             }
 
             return cinemas;
