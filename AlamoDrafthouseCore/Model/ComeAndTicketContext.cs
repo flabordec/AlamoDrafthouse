@@ -1,23 +1,9 @@
-﻿using HtmlAgilityPack;
-using MaguSoft.ComeAndTicket.Core.Helpers;
-using Microsoft.Data.Sqlite;
+﻿using MaguSoft.ComeAndTicket.Core.Helpers;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
-using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Npgsql;
-using PushbulletDotNet;
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace MaguSoft.ComeAndTicket.Core.Model
@@ -48,7 +34,7 @@ namespace MaguSoft.ComeAndTicket.Core.Model
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder
             .UseSqlite(DbConnectionString)
-            .EnableSensitiveDataLogging(true);
+            .EnableSensitiveDataLogging();
 
         public async Task<User?> GetUserFromDbAsync(string usernName) =>
             await Users

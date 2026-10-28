@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using NLog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -45,7 +46,7 @@ namespace PushbulletDotNet
                 throw new NullReferenceException(nameof(nickname));
             if (active == null)
                 throw new NullReferenceException(nameof(active));
-            return new Device(iden, nickname, active ?? false);
+            return new Device(iden, nickname, active.Value);
         }
     }
 
@@ -63,8 +64,9 @@ namespace PushbulletDotNet
 
         public DevicesList(IEnumerable<IDevice> devices)
         {
-            _devicesById = devices.ToDictionary(d => d.Id);
-            _devicesByNickname = devices.ToDictionary(d => d.Nickname);
+            var devicesArray = devices.ToArray();
+            _devicesById = devicesArray.ToDictionary(d => d.Id);
+            _devicesByNickname = devicesArray.ToDictionary(d => d.Nickname);
         }
 
         public IDevice GetDeviceById(string id) => _devicesById[id];
@@ -110,30 +112,37 @@ namespace PushbulletDotNet
         private async IAsyncEnumerable<IDevice> PrivateGetDevicesAsync()
         {
             JObject devicesJson = await PushbulletGetAsync("v2/devices");
-            foreach (var deviceJson in devicesJson["devices"].Children())
+            var devicesList = devicesJson["devices"];
+            if (devicesList is null)
+            {
+                throw new Exception("Failed to retrieve devices from Pushbullet API.");
+            }
+            foreach (var deviceJson in devicesList.Children())
             {
                 var device = Device.FromJToken(deviceJson);
                 if (device.Active)
                     yield return device;
             }
-            yield break;
         }
 
         public async ValueTask<IDevice> GetDeviceById(string id)
         {
             await InitializeDevicesAsync();
+            Debug.Assert(_devices != null);
             return _devices.GetDeviceById(id);
         }
 
         public async ValueTask<IDevice> GetDeviceByNickname(string nickname)
         {
             await InitializeDevicesAsync();
+            Debug.Assert(_devices != null);
             return _devices.GetDeviceByNickname(nickname);
         }
 
         public async ValueTask<IEnumerable<IDevice>> GetAllDevicesAsync()
         {
             await InitializeDevicesAsync();
+            Debug.Assert(_devices != null);
             return _devices.GetAllDevices();
         }
 
@@ -180,6 +189,10 @@ namespace PushbulletDotNet
 
             var responseString = await response.Content.ReadAsStringAsync();
             var responseObject = JsonConvert.DeserializeObject<JObject>(responseString);
+            if (responseObject is null)
+            {
+                throw new Exception("Failed to parse response from Get Pushbullet API.");
+            }
             return responseObject;
         }
 
@@ -201,6 +214,10 @@ namespace PushbulletDotNet
 
             var responseString = await response.Content.ReadAsStringAsync();
             var responseDict = JsonConvert.DeserializeObject<JObject>(responseString);
+            if (responseDict is null)
+            {
+                throw new Exception("Failed to parse response from Push Pushbullet API.");
+            }
             return responseDict;
         }
     }
